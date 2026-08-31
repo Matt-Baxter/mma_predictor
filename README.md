@@ -15,8 +15,18 @@ $ python -m mma_predictor.predict "Jon Jones" "Stipe Miocic"
 
 ## Results
 
-Tested on **1,587 bouts from June 2023 to June 2026** — every one of them
-occurring after the last fight the model was trained on.
+The dataset is 8,319 UFC bouts. Splits are chronological, so the model is always
+tested on fights that happened after everything it learned from:
+
+| Split | Period | Bouts | With a closing line |
+|---|---|---:|---:|
+| Train | 2001 – 2020 | 5,527 | 4,222 |
+| Validation | 2021 – May 2023 | 1,205 | 1,137 |
+| **Test** | **Jun 2023 – Jun 2026** | **1,587** | **1,214** |
+| Total | | 8,319 | 6,573 |
+
+Closing lines exist from 2010 onward and for about 79% of bouts. Everything
+below is scored on the test split alone.
 
 | Model | Accuracy | Log loss | AUC |
 |---|---:|---:|---:|
@@ -50,13 +60,14 @@ that have a closing line**, so they are directly comparable:
 | Network **with** the closing line as an input | 0.7026 | 0.5786 |
 | Network **without** it (the shipped model) | 0.6458 | 0.6331 |
 
-> The shipped model shows 0.6458 here but 0.628 in the Results table. It is the
-> same model — only the set of fights differs. Restricted to the 1,214 bouts a
-> bookmaker priced it scores 0.6458; on the other 373, which no bookmaker would
-> post a line on, it scores just **0.5710**. Those are undercard bouts between
-> unknowns (21% involve a UFC debutant, against 17% elsewhere), and they are hard
-> for the same reason nobody prices them: there is barely any history to go on.
-> The Results table's 0.628 is the blend, and it is the number to quote.
+The shipped model scores 0.6458 here against 0.628 in the Results table above.
+It is the same model; only the set of fights differs. On the 1,214 bouts a
+bookmaker priced it gets 0.6458, and on the other 373 it gets **0.5710** — a
+useful finding in itself. Those unpriced bouts are undercard fights between
+unknowns, 21% of them involving a UFC debutant against 17% elsewhere, and they
+are hard for precisely the reason nobody posts a line on them: there is almost
+no career history to work from. **0.628 is the blended figure and the one to
+quote.**
 
 Adding the odds moves log loss from 0.6331 to 0.5786 — but the odds *by
 themselves*, with no model at all, are already worth 0.5816. **The network
@@ -222,9 +233,9 @@ parameters, trained with AdamW, early stopping on validation log loss, and a
 couple the two fighter orderings and destroy the symmetry guarantee, so
 `LayerNorm` is the only normalisation available here.
 
-Splits: train 2001–2020 (5,527 bouts), validation 2021–May 2023 (1,205), test
-June 2023–June 2026 (1,587). Bouts from 1994–2000 only warm up Elo and career
-counters — one-night open-weight tournaments are a different sport.
+Bouts from 1994–2000 sit outside the table above: they only warm up Elo and the
+career counters, and never become training rows. One-night open-weight
+tournaments under different rules are a different sport.
 
 ## Limitations
 
