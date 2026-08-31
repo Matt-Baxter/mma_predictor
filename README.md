@@ -41,13 +41,22 @@ three are said plainly:
 ## Should the bookmakers' odds be an input? No — with proof
 
 The same architecture, trained twice, differing only in whether it also receives
-the vig-free closing line. Scored on the 1,214 test bouts that have one:
+the vig-free closing line. All three rows are scored on the **1,214 test bouts
+that have a closing line**, so they are directly comparable:
 
 | | Accuracy | Log loss |
 |---|---:|---:|
 | The closing line alone, no model at all | 0.7035 | 0.5816 |
 | Network **with** the closing line as an input | 0.7026 | 0.5786 |
 | Network **without** it (the shipped model) | 0.6458 | 0.6331 |
+
+> The shipped model shows 0.6458 here but 0.628 in the Results table. It is the
+> same model — only the set of fights differs. Restricted to the 1,214 bouts a
+> bookmaker priced it scores 0.6458; on the other 373, which no bookmaker would
+> post a line on, it scores just **0.5710**. Those are undercard bouts between
+> unknowns (21% involve a UFC debutant, against 17% elsewhere), and they are hard
+> for the same reason nobody prices them: there is barely any history to go on.
+> The Results table's 0.628 is the blend, and it is the number to quote.
 
 Adding the odds moves log loss from 0.6331 to 0.5786 — but the odds *by
 themselves*, with no model at all, are already worth 0.5816. **The network
