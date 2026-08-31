@@ -18,8 +18,8 @@ $ python -m mma_predictor.predict "Jon Jones" "Stipe Miocic"
   produced without any bookmaker line as an input.
 ```
 
-There is also a **browser version** with two search boxes, no install required —
-see [Try it in a browser](#try-it-in-a-browser).
+**▶ Try it live: [matt-baxter.github.io/mma_predictor](https://matt-baxter.github.io/mma_predictor/)**
+— two search boxes, no install, works on a phone.
 
 ---
 
@@ -203,19 +203,23 @@ features already carry much of the same information.
 
 ## Try it in a browser
 
-`web/index.html` is a single page that runs the whole ensemble client-side in
-plain JavaScript — no Python, no server, no install. Pick two fighters and it
-shows the model's probabilities and fair moneyline, and, where the two have
-actually fought, the real Vegas closing line beside it with the result and
-whether the model called it.
+### → [matt-baxter.github.io/mma_predictor](https://matt-baxter.github.io/mma_predictor/)
+
+`web/index.html` runs the whole ensemble client-side in plain JavaScript — no
+Python, no server, no install. Pick two fighters and it shows the model's
+probabilities and fair moneyline, and, where the two have actually fought, the
+real Vegas closing line beside it with the result and whether the model called it.
+
+It deploys itself: `.github/workflows/pages.yml` publishes `web/` to GitHub Pages
+on every push. To run it locally instead:
 
 ```bash
 python scripts/export_web.py    # writes web/model_data.json (~3 MB)
 cd web && python -m http.server # then open http://localhost:8000
 ```
 
-Push the `web/` folder to GitHub Pages and it works as-is. `scripts/build_web.py`
-inlines the data into one self-contained HTML file for hosts that block the fetch.
+`scripts/build_web.py` inlines the data into one self-contained HTML file for
+hosts that block the fetch.
 
 The page re-implements the forward pass — linear layers, LayerNorm, SiLU, and the
 antisymmetrisation — in about 40 lines of JavaScript, so it could silently drift
