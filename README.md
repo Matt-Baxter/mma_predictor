@@ -226,6 +226,35 @@ pytest                                                 # 34 tests
 `--as-of` replays each fighter's career state to that date, so you can ask what
 the model would have said before a fight that has since happened.
 
+### Backtesting
+
+`scripts/backtest.py` replays real bouts from the held-out test split — fights
+the model never trained on — priced from each fighter's career as it stood the
+day before. The actual result and the closing line sit next to the model's call:
+
+```bash
+python scripts/backtest.py --fighter "Sean O'Malley"
+python scripts/backtest.py --event "UFC 300"
+python scripts/backtest.py --disagreements   # biggest gaps vs the market
+python scripts/backtest.py --upsets          # underdogs it called correctly
+```
+
+```
+  date       model pick                conf  market  result  actual winner
+  2024-04-13 Alex Pereira              61%     54%  HIT     Alex Pereira
+  2024-04-13 Max Holloway              51%     38%  HIT     Max Holloway
+  2024-04-13 Bo Nickal                 68%     90%  HIT     Bo Nickal
+  2024-04-13 Holly Holm                63%     21%  miss    Kayla Harrison
+  ...
+  model: 9/13 correct (69%)   market on the same bouts: 7/9 (78%)
+```
+
+Two warnings about reading these. `--upsets` selects bouts *because* the model
+got them right, so its hit rate is 100% by construction and proves nothing; the
+script says so when you run it. And any single card is 13 fights — far too few
+to separate skill from luck. The number that counts is the full 1,587-bout
+evaluation above.
+
 ## Layout
 
 ```
