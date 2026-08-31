@@ -1,7 +1,7 @@
 # Publishes web/ to GitHub Pages on every push.
 #
-# One-time setup: repository Settings -> Pages -> Source: "GitHub Actions".
-# After that this runs on its own and the site lives at
+# `enablement: true` lets the workflow switch Pages on by itself, so no manual
+# repository setting is needed. The site lives at
 # https://matt-baxter.github.io/mma_predictor/
 name: Deploy web app to GitHub Pages
 
@@ -29,6 +29,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
