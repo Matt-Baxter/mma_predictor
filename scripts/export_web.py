@@ -62,6 +62,13 @@ def export_weights(model) -> dict:
         "pair": blocks("pair_body"),
         "outW": round_list(state["pair_out.weight"][0]),
         "outB": float(state["pair_out.bias"][0]),
+        # The linear skip branch, absent when the model was trained with
+        # --no-linear-skip.
+        "skipW": (
+            round_list(state["linear_skip.weight"][0])
+            if "linear_skip.weight" in state
+            else None
+        ),
     }
 
 

@@ -25,6 +25,17 @@ statistics would couple the two orderings through the rest of the batch and
 break the guarantee. The one place symmetry is not bit-exact is under dropout
 during training, where the two calls draw different masks; in ``eval()`` mode,
 which is what every prediction and every evaluation uses, it is exact.
+
+The second design decision is the **linear skip connection**.
+
+``w . (x_a - x_b)`` added straight to the output is exactly the antisymmetric
+logistic regression on the same features. Without it the network has to
+rediscover that linear solution through a nonlinear encoder, from a random
+start, on ~5,500 noisy bouts -- and there is no reason it should land on
+something at least as good. With it, the linear model is inside the hypothesis
+space and reachable in a few steps, and the deep branch only has to learn what
+the linear term misses. The skip is antisymmetric on its own (swapping the
+fighters negates ``x_a - x_b``), so it preserves the guarantee above.
 """
 
 from __future__ import annotations
@@ -54,6 +65,7 @@ class SymmetricFightNet(nn.Module):
         hidden_pair: tuple[int, ...] = (128, 64),
         embed_dim: int = 8,
         dropout: float = 0.3,
+        linear_skip: bool = True,
     ):
         super().__init__()
         self.weight_class_embedding = nn.Embedding(n_weight_classes, embed_dim)
@@ -67,6 +79,15 @@ class SymmetricFightNet(nn.Module):
         pair_in = 3 * hidden_fighter[-1] + context_dim
         self.pair_body = _mlp((pair_in, *hidden_pair), dropout)
         self.pair_out = nn.Linear(hidden_pair[-1], 1)
+
+        # The wide branch: plain antisymmetric logistic regression on the raw
+        # features. Starts at zero so training begins as a coin flip and the
+        # first thing the model learns is the linear solution.
+        self.linear_skip = (
+            nn.Linear(n_fighter_features, 1, bias=False) if linear_skip else None
+        )
+        if self.linear_skip is not None:
+            nn.init.zeros_(self.linear_skip.weight)
 
         # Start every fight as a coin flip.
         nn.init.zeros_(self.pair_out.bias)
@@ -102,7 +123,11 @@ class SymmetricFightNet(nn.Module):
         logit = self._score(encoded_a, encoded_b, context) - self._score(
             encoded_b, encoded_a, context
         )
-        return logit.squeeze(-1)
+        logit = logit.squeeze(-1)
+        if self.linear_skip is not None:
+            # x_a - x_b negates under a swap, so the skip is antisymmetric too.
+            logit = logit + self.linear_skip(xa - xb).squeeze(-1)
+        return logit
 
     @torch.no_grad()
     def predict_proba(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:

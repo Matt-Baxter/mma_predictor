@@ -7,42 +7,44 @@ Model                          n      acc   log loss    Brier     AUC
 Coin flip                   1587   0.5054     0.6931   0.2500  0.5000
 Elo formula only            1587   0.5690     0.6788   0.2429  0.6047
 Logistic regression         1587   0.6326     0.6437   0.2262  0.6791
-Neural network (ours)       1587   0.6251     0.6457   0.2269  0.6807
+Neural network (ours)       1587   0.6282     0.6426   0.2257  0.6824
 ------------------------------------------------------------------------------
 Betting market (close)      1214   0.7035     0.5816   0.1983  0.7640
-  ...ours, same bouts       1214   0.6425     0.6365   0.2225  0.7013
+  ...ours, same bouts       1214   0.6458     0.6331   0.2212  0.7023
 
 CALIBRATION (does 65% mean 65%?)
     bin   n  predicted  actual    gap
-0.2-0.3  32      0.294   0.156  0.137
-0.3-0.4 377      0.352   0.300  0.052
-0.4-0.5 376      0.450   0.455 -0.005
-0.5-0.6 382      0.551   0.531  0.020
-0.6-0.7 387      0.644   0.693 -0.048
-0.7-0.8  33      0.709   0.758 -0.048
-Expected calibration error: 0.0338
+0.1-0.2   6      0.168   0.333 -0.165
+0.2-0.3  81      0.268   0.173  0.095
+0.3-0.4 306      0.356   0.310  0.046
+0.4-0.5 389      0.451   0.447  0.004
+0.5-0.6 410      0.547   0.549 -0.002
+0.6-0.7 313      0.641   0.674 -0.033
+0.7-0.8  76      0.734   0.763 -0.029
+0.8-0.9   6      0.823   1.000 -0.177
+Expected calibration error: 0.0243
 
 BETTING TEST vs the closing line (flat $100 stakes, real prices)
   [control] always back the favourite    1214 bets  win rate 0.703  ROI +0.48%
   [control] always back the underdog     1214 bets  win rate 0.300  ROI -15.22%
   [control] bet a random side            1214 bets  win rate 0.501  ROI -6.99%
 
-  edge > 3%: 1027 bets  win rate 0.323  ROI -12.93%  ($-13,284)
-  edge > 5%:  899 bets  win rate 0.294  ROI -16.95%  ($-15,235)
-  edge > 8%:  739 bets  win rate 0.279  ROI -17.26%  ($-12,752)
-  edge > 12%:  518 bets  win rate 0.278  ROI -11.78%  ($-6,104)
-  -> 89% of our edge>5% bets are on the market's underdog.
+  edge > 3%: 1007 bets  win rate 0.329  ROI -12.72%  ($-12,811)
+  edge > 5%:  907 bets  win rate 0.311  ROI -14.57%  ($-13,212)
+  edge > 8%:  734 bets  win rate 0.286  ROI -17.52%  ($-12,858)
+  edge > 12%:  496 bets  win rate 0.296  ROI -9.31%  ($-4,616)
+  -> 87% of our edge>5% bets are on the market's underdog.
 
 TOP FEATURES (permutation importance, test set)
-  age                        +0.01372 log loss when shuffled
-  days_since_debut           +0.00421 log loss when shuffled
-  win_streak                 +0.00292 log loss when shuffled
-  age_from_prime             +0.00255 log loss when shuffled
-  win_rate                   +0.00161 log loss when shuffled
-  sub_win_rate               +0.00105 log loss when shuffled
-  elo                        +0.00096 log loss when shuffled
-  elo_off_peak               +0.00093 log loss when shuffled
-  ufc_losses                 +0.00092 log loss when shuffled
-  p4p_rank_score             +0.00087 log loss when shuffled
-  div_rank_score             +0.00081 log loss when shuffled
-  ko_loss_rate               +0.00079 log loss when shuffled
+  age                        +0.01515 log loss when shuffled
+  days_since_debut           +0.00508 log loss when shuffled
+  win_streak                 +0.00377 log loss when shuffled
+  age_from_prime             +0.00303 log loss when shuffled
+  win_rate                   +0.00247 log loss when shuffled
+  elo                        +0.00187 log loss when shuffled
+  elo_off_peak               +0.00177 log loss when shuffled
+  ufc_losses                 +0.00172 log loss when shuffled
+  division_fights            +0.00163 log loss when shuffled
+  div_rank_score             +0.00144 log loss when shuffled
+  opponent_elo_avg           +0.00106 log loss when shuffled
+  ko_loss_rate               +0.00102 log loss when shuffled

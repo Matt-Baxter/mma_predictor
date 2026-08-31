@@ -23,17 +23,16 @@ occurring after the last fight the model was trained on.
 | Coin flip | 0.505 | 0.6931 | 0.500 |
 | Elo rating only | 0.569 | 0.6788 | 0.605 |
 | Logistic regression, same features | 0.633 | 0.6437 | 0.679 |
-| **This model** | **0.625** | **0.6457** | **0.681** |
+| **This model** | **0.628** | **0.6426** | **0.682** |
 | *Betting market (closing line)* | *0.704* | *0.5816* | *0.764* |
 
 Three things are true at once, and the project is only worth reading if all
 three are said plainly:
 
 - **It works.** Far better than chance, clearly better than an Elo rating, and
-  calibrated to within 3.4% — when it says 64%, that fighter wins 69% of the time.
-- **It does not beat a linear model on the same features.** With ~5,500 training
-  bouts and mostly monotone inputs, the signal is close to linear. The network
-  earns its place through what it *guarantees*, not its score.
+  calibrated to within 2.4% — when it says 64%, that fighter wins 67% of the time.
+- **It barely beats a linear model on the same features**, and that is a fact
+  about the data, not a failure of the network — see below.
 - **It does not beat the market, and does not pretend to.** The closing line is
   better by 0.06 log loss. Bookmakers know about the injury, the bad weight cut,
   and the fighter who took the bout on nine days' notice. None of that is in any
@@ -46,14 +45,15 @@ the vig-free closing line. Scored on the 1,214 test bouts that have one:
 
 | | Accuracy | Log loss |
 |---|---:|---:|
-| The closing line alone, no model at all | 0.7035 | **0.5816** |
-| Network **with** the closing line as an input | 0.7076 | **0.5816** |
-| Network **without** it (the shipped model) | 0.6425 | 0.6365 |
+| The closing line alone, no model at all | 0.7035 | 0.5816 |
+| Network **with** the closing line as an input | 0.7026 | 0.5786 |
+| Network **without** it (the shipped model) | 0.6458 | 0.6331 |
 
-Feeding in the odds scores 0.5816. Simply *printing* the odds scores 0.5816.
-**The market-aware model learned to copy the line and contributed nothing of its
-own.** It looks like the best model in the table while having no independent
-opinion at all.
+Adding the odds moves log loss from 0.6331 to 0.5786 — but the odds *by
+themselves*, with no model at all, are already worth 0.5816. **The network
+contributed 0.003 of that 0.055 improvement; the other 95% is just the line
+being copied.** It looks like the best model in the table while having almost no
+independent opinion.
 
 So the odds are used only as the benchmark, never as an input. Reproduce the
 variant with `python -m mma_predictor.train --use-market-odds`; it saves to a
@@ -62,9 +62,49 @@ needs a bookmaker's line cannot price a hypothetical fight.
 
 **It also finds no betting edge.** Backing every favourite returns +0.5%; betting
 at random loses roughly the vig. Betting the model's disagreements with the line
-returns −17%, because 89% of them are on the underdog — the model is simply less
+returns −15%, because 87% of them are on the underdog — the model is simply less
 confident than the market, and the market is right. This is a learning project,
 not a wagering tool.
+
+## Why isn't the network far ahead of logistic regression?
+
+The obvious worry is that the deep model is doing nothing. `scripts/model_comparison.py`
+settles it:
+
+| Model | Validation | Test |
+|---|---:|---:|
+| Logistic regression | 0.6646 | 0.6437 |
+| Gradient boosting (best of three settings) | 0.6670 | 0.6517 |
+| Logistic regression + squared terms | 0.6648 | 0.6515 |
+| **Neural network** | **0.6617** | **0.6426** |
+
+Gradient boosting is excellent at discovering interactions, and it *loses* to the
+plain linear model — as do explicit quadratic terms. **The nonlinearity is not
+there to find.** Fight outcomes are close to a linear function of these features:
+being younger helps, being on a win streak helps, and the effects mostly add up
+rather than interacting.
+
+That also explains the fix. The network now carries a **linear skip connection** —
+`w · (xₐ − x_b)` added straight to the output, which *is* the antisymmetric
+logistic regression. Without it the network had to rediscover that linear
+solution through a nonlinear encoder from a random start, and there was no reason
+it would land somewhere at least as good; it finished marginally behind. With it,
+the linear model sits inside the hypothesis space and the deep branch only learns
+the correction. Ablate it with `--no-linear-skip` and test log loss goes back from
+0.6426 to 0.6485.
+
+Even so, be honest about the size of the win: a paired t-test over the 1,587 test
+bouts gives **p = 0.59**, and the bootstrap 95% CI for the gap is
+**[−0.005, +0.003]** — it contains zero. The network and the linear model are
+tied, and anyone declaring a winner on this data is reading noise.
+
+**The ceiling here is the features, not the architecture.** Without round-by-round
+strike and control-time data, there is little left for extra capacity to learn,
+and the remaining 0.06 log loss gap to the closing line is information the market
+has that no public dataset does. Tuning was not skipped — width, depth, dropout,
+learning rate and batch size were swept, and the whole grid moved validation log
+loss by less than 0.005. That is what a feature ceiling looks like from the
+inside.
 
 ## Leakage: two traps in this dataset
 
@@ -151,9 +191,10 @@ python -m mma_predictor.evaluate   # full report -> artifacts/
 python -m mma_predictor.predict "Israel Adesanya" "Sean Strickland"
 python -m mma_predictor.predict "Alex Pereira" "Magomed Ankalaev" --title
 python -m mma_predictor.predict --search "silva"      # find exact spellings
-pytest                                                 # 35 tests
+pytest                                                 # 37 tests
 ```
 
+`scripts/model_comparison.py` reproduces the linear-vs-nonlinear analysis above.
 `scripts/backtest.py` replays held-out fights with the closing line and the real
 result beside the model's call (`--fighter`, `--event`, `--disagreements`).
 
@@ -166,10 +207,11 @@ DOM and checks it against PyTorch — 28/28 matchups agree to within 1e-5.
 
 A shared encoder embeds each fighter from their features, stance and the bout
 context; a pair head reads both encodings, their difference and the context, and
-is antisymmetrised as above. ~11k parameters, trained with AdamW, early stopping
-on validation log loss, and a 7-seed ensemble. The network is deliberately small:
-a sweep from one 48-unit layer up to `(128, 96)` moved validation log loss by
-less than 0.005, which is inside the noise of a 1,205-fight validation set.
+is antisymmetrised as above, plus the linear skip described earlier. ~11k
+parameters, trained with AdamW, early stopping on validation log loss, and a
+7-seed ensemble. `BatchNorm` is deliberately absent: batch statistics would
+couple the two fighter orderings and destroy the symmetry guarantee, so
+`LayerNorm` is the only normalisation available here.
 
 Splits: train 2001–2020 (5,527 bouts), validation 2021–May 2023 (1,205), test
 June 2023–June 2026 (1,587). Bouts from 1994–2000 only warm up Elo and career

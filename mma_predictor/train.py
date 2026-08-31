@@ -62,6 +62,7 @@ def train_one(
         hidden_pair=tuple(config.hidden_pair),
         embed_dim=config.embed_dim,
         dropout=config.dropout,
+        linear_skip=config.linear_skip,
     )
     optimiser = torch.optim.AdamW(
         model.parameters(), lr=config.lr, weight_decay=config.weight_decay
@@ -166,6 +167,7 @@ def train(
                 "hidden_pair": list(config.hidden_pair),
                 "embed_dim": config.embed_dim,
                 "dropout": config.dropout,
+                "linear_skip": config.linear_skip,
             },
             "histories": histories,
             "metrics": {"val": ensemble_val, "test": ensemble_test},
@@ -232,6 +234,11 @@ def main() -> None:
         action="store_true",
         help="train the market-aware variant (for comparison only - see README)",
     )
+    parser.add_argument(
+        "--no-linear-skip",
+        action="store_true",
+        help="ablate the linear skip connection (see README)",
+    )
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
 
@@ -241,6 +248,7 @@ def main() -> None:
         lr=args.lr,
         seed=args.seed,
         use_market_odds=args.use_market_odds,
+        linear_skip=not args.no_linear_skip,
         splits=SplitConfig(),
     )
     train(config=config, n_models=args.n_models, output=args.output)

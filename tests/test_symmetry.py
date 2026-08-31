@@ -63,3 +63,29 @@ def test_no_batchnorm_anywhere():
     """BatchNorm would couple the two orderings through the rest of the batch."""
     model = _model()
     assert not any(isinstance(m, torch.nn.modules.batchnorm._BatchNorm) for m in model.modules())
+
+
+def test_linear_skip_does_not_break_symmetry():
+    """The skip is w.(xa - xb), which negates under a swap, so it stays antisymmetric."""
+    torch.manual_seed(3)
+    model = _model()
+    # Give the skip real weights; at initialisation it is all zeros.
+    torch.nn.init.normal_(model.linear_skip.weight, std=0.5)
+    batch = _batch(seed=9)
+    with torch.no_grad():
+        forward = torch.sigmoid(
+            model(batch["xa"], batch["xb"], batch["sa"], batch["sb"], batch["xc"], batch["wc"])
+        )
+        reversed_ = torch.sigmoid(
+            model(batch["xb"], batch["xa"], batch["sb"], batch["sa"], batch["xc"], batch["wc"])
+        )
+    assert torch.allclose(forward + reversed_, torch.ones_like(forward), atol=1e-6)
+
+
+def test_linear_skip_can_be_ablated():
+    """--no-linear-skip must actually remove the branch, for the README's ablation."""
+    with_skip = SymmetricFightNet(41, 3, 13, 5, linear_skip=True)
+    without = SymmetricFightNet(41, 3, 13, 5, linear_skip=False)
+    assert with_skip.linear_skip is not None
+    assert without.linear_skip is None
+    assert "linear_skip.weight" not in without.state_dict()

@@ -270,7 +270,12 @@
     const encodedA = stack(net.encoder, join(xa, net.stEmb[stanceA], context));
     const encodedB = stack(net.encoder, join(xb, net.stEmb[stanceB], context));
     // The antisymmetric step: swapping the fighters negates the logit exactly.
-    return score(net, encodedA, encodedB, context) - score(net, encodedB, encodedA, context);
+    let logit = score(net, encodedA, encodedB, context) - score(net, encodedB, encodedA, context);
+    if (net.skipW) {
+      // Linear skip: plain logistic regression on the feature differences.
+      for (let i = 0; i < net.skipW.length; i++) logit += net.skipW[i] * (xa[i] - xb[i]);
+    }
+    return logit;
   }
 
   /* ---------- feature assembly ---------- */

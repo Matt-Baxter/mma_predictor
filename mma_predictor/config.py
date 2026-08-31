@@ -81,4 +81,5 @@ class TrainConfig:
     label_smoothing: float = 0.03
     seed: int = 17
     use_market_odds: bool = False
+    linear_skip: bool = True
     splits: SplitConfig = field(default_factory=SplitConfig)
