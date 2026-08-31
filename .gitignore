@@ -1,0 +1,18 @@
+# Data (regenerate with `python -m mma_predictor.download`)
+data/raw/*.csv
+data/processed/*
+!data/processed/.gitkeep
+
+# Model artifacts
+artifacts/*
+!artifacts/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.DS_Store

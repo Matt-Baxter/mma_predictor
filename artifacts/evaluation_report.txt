@@ -1,0 +1,48 @@
+==============================================================================
+TEST SET: 1587 bouts from 2023-06-03 to 2026-06-27
+==============================================================================
+
+Model                          n      acc   log loss    Brier     AUC
+------------------------------------------------------------------------------
+Coin flip                   1587   0.5054     0.6931   0.2500  0.5000
+Elo formula only            1587   0.5690     0.6788   0.2429  0.6047
+Logistic regression         1587   0.6326     0.6437   0.2262  0.6791
+Neural network (ours)       1587   0.6251     0.6457   0.2269  0.6807
+------------------------------------------------------------------------------
+Betting market (close)      1214   0.7035     0.5816   0.1983  0.7640
+  ...ours, same bouts       1214   0.6425     0.6365   0.2225  0.7013
+
+CALIBRATION (does 65% mean 65%?)
+    bin   n  predicted  actual    gap
+0.2-0.3  32      0.294   0.156  0.137
+0.3-0.4 377      0.352   0.300  0.052
+0.4-0.5 376      0.450   0.455 -0.005
+0.5-0.6 382      0.551   0.531  0.020
+0.6-0.7 387      0.644   0.693 -0.048
+0.7-0.8  33      0.709   0.758 -0.048
+Expected calibration error: 0.0338
+
+BETTING TEST vs the closing line (flat $100 stakes, real prices)
+  [control] always back the favourite    1214 bets  win rate 0.703  ROI +0.48%
+  [control] always back the underdog     1214 bets  win rate 0.300  ROI -15.22%
+  [control] bet a random side            1214 bets  win rate 0.501  ROI -6.99%
+
+  edge > 3%: 1027 bets  win rate 0.323  ROI -12.93%  ($-13,284)
+  edge > 5%:  899 bets  win rate 0.294  ROI -16.95%  ($-15,235)
+  edge > 8%:  739 bets  win rate 0.279  ROI -17.26%  ($-12,752)
+  edge > 12%:  518 bets  win rate 0.278  ROI -11.78%  ($-6,104)
+  -> 89% of our edge>5% bets are on the market's underdog.
+
+TOP FEATURES (permutation importance, test set)
+  age                        +0.01372 log loss when shuffled
+  days_since_debut           +0.00421 log loss when shuffled
+  win_streak                 +0.00292 log loss when shuffled
+  age_from_prime             +0.00255 log loss when shuffled
+  win_rate                   +0.00161 log loss when shuffled
+  sub_win_rate               +0.00105 log loss when shuffled
+  elo                        +0.00096 log loss when shuffled
+  elo_off_peak               +0.00093 log loss when shuffled
+  ufc_losses                 +0.00092 log loss when shuffled
+  p4p_rank_score             +0.00087 log loss when shuffled
+  div_rank_score             +0.00081 log loss when shuffled
+  ko_loss_rate               +0.00079 log loss when shuffled
