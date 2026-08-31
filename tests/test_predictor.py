@@ -49,3 +49,11 @@ def test_predictions_move_with_the_as_of_date(predictor):
     early = predictor.predict("Alexander Volkanovski", "Max Holloway", as_of="2019-12-14")
     late = predictor.predict("Alexander Volkanovski", "Max Holloway", as_of="2026-01-01")
     assert early.probability_a != late.probability_a
+
+
+def test_cross_division_matchup_is_still_order_independent(predictor):
+    """The default bout division must not depend on which name was typed first."""
+    forward = predictor.predict("Alex Pereira", "Tom Aspinall")
+    backward = predictor.predict("Tom Aspinall", "Alex Pereira")
+    assert forward.weight_class == backward.weight_class
+    assert forward.probability_a == pytest.approx(backward.probability_b, abs=1e-6)

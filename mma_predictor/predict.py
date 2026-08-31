@@ -26,7 +26,7 @@ from .features import (
     RankingLookup,
     _static_features,
 )
-from .parsing import normalize_name, probability_to_american
+from .parsing import normalize_name, pick_bout_division, probability_to_american
 from .train import ensemble_probabilities, load_checkpoint
 
 DEFAULT_CHECKPOINT = ARTIFACT_DIR / "model.pt"
@@ -149,7 +149,10 @@ class Predictor:
         if key_a == key_b:
             raise ValueError("A fighter cannot fight themselves.")
         as_of_ts = pd.Timestamp(as_of) if as_of is not None else pd.Timestamp.today().normalize()
-        weight_class = weight_class or self.snapshot[key_a]["last_weight_class"]
+        weight_class = weight_class or pick_bout_division(
+            self.snapshot[key_a]["last_weight_class"],
+            self.snapshot[key_b]["last_weight_class"],
+        )
         scheduled_rounds = scheduled_rounds or (5 if title else 3)
 
         side_a = self._side(key_a, as_of_ts, weight_class)

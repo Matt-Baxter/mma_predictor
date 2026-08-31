@@ -120,6 +120,45 @@ CANONICAL_DIVISIONS = (
 )
 
 
+# Nominal upper limit in pounds, used only to pick a bout division when two
+# fighters come from different ones. Catch/Open weight sort last.
+DIVISION_WEIGHT = {
+    "Women's Strawweight": 115,
+    "Women's Flyweight": 125,
+    "Women's Bantamweight": 135,
+    "Women's Featherweight": 145,
+    "Strawweight": 115,
+    "Flyweight": 125,
+    "Bantamweight": 135,
+    "Featherweight": 145,
+    "Lightweight": 155,
+    "Welterweight": 170,
+    "Middleweight": 185,
+    "Light Heavyweight": 205,
+    "Heavyweight": 265,
+    "Catch Weight": 999,
+    "Open Weight": 999,
+}
+
+
+def pick_bout_division(division_a: str, division_b: str) -> str:
+    """Choose the division for a hypothetical bout, independent of argument order.
+
+    If the two fighters last fought in the same division, that is the bout. If
+    not, the heavier division wins: the bigger fighter is the one who cannot
+    safely make the lighter limit. Deriving it from whichever name was typed
+    first would make the prediction depend on argument order, which would break
+    the model's symmetry guarantee.
+    """
+    if division_a == division_b:
+        return division_a
+    weight_a = DIVISION_WEIGHT.get(division_a, 0)
+    weight_b = DIVISION_WEIGHT.get(division_b, 0)
+    if weight_a == weight_b:
+        return min(division_a, division_b)  # stable tie-break
+    return division_a if weight_a > weight_b else division_b
+
+
 def clean_weight_class(value: object) -> str:
     """Reduce any bout label to its underlying division.
 

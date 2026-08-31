@@ -1,0 +1,170 @@
+[
+ {
+  "a": "sean o malley",
+  "b": "umar nurmagomedov",
+  "title": false,
+  "p": 0.46266785
+ },
+ {
+  "a": "jon jones",
+  "b": "stipe miocic",
+  "title": false,
+  "p": 0.67640334
+ },
+ {
+  "a": "alex pereira",
+  "b": "tom aspinall",
+  "title": false,
+  "p": 0.37681246
+ },
+ {
+  "a": "israel adesanya",
+  "b": "sean strickland",
+  "title": true,
+  "p": 0.36580566
+ },
+ {
+  "a": "merab dvalishvili",
+  "b": "sean o malley",
+  "title": true,
+  "p": 0.48499957
+ },
+ {
+  "a": "zhang weili",
+  "b": "rose namajunas",
+  "title": false,
+  "p": 0.54746532
+ },
+ {
+  "a": "islam makhachev",
+  "b": "ilia topuria",
+  "title": true,
+  "p": 0.60433489
+ },
+ {
+  "a": "jon jones",
+  "b": "alex pereira",
+  "title": false,
+  "p": 0.61597049
+ },
+ {
+  "a": "vince morales",
+  "b": "roland payne",
+  "title": true,
+  "p": 0.41193241
+ },
+ {
+  "a": "geane herrera",
+  "b": "anthony hamilton",
+  "title": false,
+  "p": 0.57625157
+ },
+ {
+  "a": "rafael dos anjos",
+  "b": "alvaro herrera mendoza",
+  "title": true,
+  "p": 0.64261019
+ },
+ {
+  "a": "tom gallicchio",
+  "b": "steve judson",
+  "title": false,
+  "p": 0.45331293
+ },
+ {
+  "a": "montse rendon",
+  "b": "jack nilson",
+  "title": true,
+  "p": 0.37765354
+ },
+ {
+  "a": "junior tafa",
+  "b": "victor valenzuela",
+  "title": false,
+  "p": 0.39384648
+ },
+ {
+  "a": "besam yousef",
+  "b": "kevin jordan",
+  "title": true,
+  "p": 0.49485728
+ },
+ {
+  "a": "joe veres",
+  "b": "pablo garza",
+  "title": false,
+  "p": 0.44100758
+ },
+ {
+  "a": "chris duncan",
+  "b": "austin arnett",
+  "title": true,
+  "p": 0.63849443
+ },
+ {
+  "a": "marcio barbosa",
+  "b": "chan sung jung",
+  "title": false,
+  "p": 0.5282734
+ },
+ {
+  "a": "carlo prater",
+  "b": "robbie lawler",
+  "title": true,
+  "p": 0.46152881
+ },
+ {
+  "a": "kyle watson",
+  "b": "josh haynes",
+  "title": false,
+  "p": 0.54767168
+ },
+ {
+  "a": "kuniyoshi hironaka",
+  "b": "magnus cedenblad",
+  "title": true,
+  "p": 0.45970753
+ },
+ {
+  "a": "nick catone",
+  "b": "vicente luque",
+  "title": false,
+  "p": 0.33696344
+ },
+ {
+  "a": "kailin curran",
+  "b": "makwan amirkhani",
+  "title": true,
+  "p": 0.51641935
+ },
+ {
+  "a": "elijah smith",
+  "b": "brando pericic",
+  "title": false,
+  "p": 0.49178514
+ },
+ {
+  "a": "bob cook",
+  "b": "puja tomar",
+  "title": true,
+  "p": 0.61154562
+ },
+ {
+  "a": "tyson nam",
+  "b": "andre muniz",
+  "title": false,
+  "p": 0.30761603
+ },
+ {
+  "a": "jean matsumoto",
+  "b": "ricco rodriguez",
+  "title": true,
+  "p": 0.61061805
+ },
+ {
+  "a": "impa kasanganay",
+  "b": "carlos mota",
+  "title": false,
+  "p": 0.5273056
+ }
+]

@@ -18,6 +18,9 @@ $ python -m mma_predictor.predict "Jon Jones" "Stipe Miocic"
   produced without any bookmaker line as an input.
 ```
 
+There is also a **browser version** with two search boxes, no install required —
+see [Try it in a browser](#try-it-in-a-browser).
+
 ---
 
 ## The headline result, stated honestly
@@ -197,6 +200,33 @@ win_rate           +0.00161
 Age dominates everything else by a factor of three. Mileage and recent form
 follow. Elo matters less than expected, largely because the record and ranking
 features already carry much of the same information.
+
+## Try it in a browser
+
+`web/index.html` is a single page that runs the whole ensemble client-side in
+plain JavaScript — no Python, no server, no install. Pick two fighters and it
+shows the model's probabilities and fair moneyline, and, where the two have
+actually fought, the real Vegas closing line beside it with the result and
+whether the model called it.
+
+```bash
+python scripts/export_web.py    # writes web/model_data.json (~3 MB)
+cd web && python -m http.server # then open http://localhost:8000
+```
+
+Push the `web/` folder to GitHub Pages and it works as-is. `scripts/build_web.py`
+inlines the data into one self-contained HTML file for hosts that block the fetch.
+
+The page re-implements the forward pass — linear layers, LayerNorm, SiLU, and the
+antisymmetrisation — in about 40 lines of JavaScript, so it could silently drift
+from the PyTorch model. `scripts/verify_web.js` runs the page's real script under
+a stub DOM and checks it against predictions written straight from PyTorch:
+
+```
+  28/28 match; worst difference 9.81e-06
+```
+
+That residual is the 5-decimal rounding in the exported weights, not a logic gap.
 
 ## Quickstart
 

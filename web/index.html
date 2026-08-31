@@ -1,0 +1,500 @@
+<title>Octagon Odds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e8ebee; --surface:#ffffff; --surface-2:#f2f4f6;
+    --ink:#141a21; --muted:#5b6773; --line:#d3d9df; --line-soft:#e4e8ec;
+    --model:#c8770f; --model-soft:#f0e0c6;
+    --market:#1f6f8c; --market-soft:#cfe2ea;
+    --win:#2f7d4f; --loss:#a8443a;
+    --shadow:0 1px 2px rgba(20,26,33,.06), 0 8px 24px rgba(20,26,33,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0d1117; --surface:#161c24; --surface-2:#1d242e;
+      --ink:#e4eaf1; --muted:#8d9aa8; --line:#2b333e; --line-soft:#222932;
+      --model:#f0a94a; --model-soft:#3d2f1a;
+      --market:#5cb3d0; --market-soft:#16323d;
+      --win:#5fbf85; --loss:#e0796d;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0d1117; --surface:#161c24; --surface-2:#1d242e;
+    --ink:#e4eaf1; --muted:#8d9aa8; --line:#2b333e; --line-soft:#222932;
+    --model:#f0a94a; --model-soft:#3d2f1a;
+    --market:#5cb3d0; --market-soft:#16323d;
+    --win:#5fbf85; --loss:#e0796d;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:Barlow,"Helvetica Neue",Arial,sans-serif;
+    font-size:16px; line-height:1.55; margin:0;
+    padding:28px 20px 64px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto}
+
+  header{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:26px}
+  .brand{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap}
+  h1{
+    font-family:Oswald,"Arial Narrow",sans-serif; font-weight:600;
+    font-size:clamp(30px,6vw,44px); letter-spacing:.01em; text-transform:uppercase;
+    margin:0; line-height:1; text-wrap:balance;
+  }
+  .asof{
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px;
+    text-transform:uppercase; letter-spacing:.09em; color:var(--muted);
+    border:1px solid var(--line); border-radius:2px; padding:5px 9px; white-space:nowrap;
+  }
+  .lede{color:var(--muted); font-size:15px; margin:10px 0 0; max-width:62ch}
+
+  /* ---------- pickers ---------- */
+  .pickers{display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:start; margin-bottom:14px}
+  @media (max-width:620px){ .pickers{grid-template-columns:1fr; gap:8px} .vs{justify-self:start} }
+  .field{position:relative}
+  label{
+    display:block; font-family:"IBM Plex Mono",monospace; font-size:10.5px;
+    text-transform:uppercase; letter-spacing:.11em; color:var(--muted); margin-bottom:6px;
+  }
+  input[type=text]{
+    width:100%; padding:11px 12px; font-family:Barlow,sans-serif; font-size:16px;
+    color:var(--ink); background:var(--surface);
+    border:1px solid var(--line); border-radius:3px;
+  }
+  input[type=text]:focus{outline:2px solid var(--model); outline-offset:1px; border-color:var(--model)}
+  .vs{
+    font-family:Oswald,sans-serif; font-size:15px; letter-spacing:.14em; color:var(--muted);
+    align-self:center; padding-top:20px; text-transform:uppercase;
+  }
+  .menu{
+    position:absolute; z-index:20; top:100%; left:0; right:0; margin-top:3px;
+    background:var(--surface); border:1px solid var(--line); border-radius:3px;
+    box-shadow:var(--shadow); max-height:264px; overflow-y:auto;
+  }
+  .menu[hidden]{display:none}
+  .opt{padding:8px 11px; cursor:pointer; display:flex; justify-content:space-between; gap:10px; align-items:baseline; border-bottom:1px solid var(--line-soft)}
+  .opt:last-child{border-bottom:0}
+  .opt[aria-selected=true]{background:var(--surface-2)}
+  .opt b{font-weight:500}
+  .opt span{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); white-space:nowrap}
+
+  .controls{display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-bottom:22px}
+  .check{display:flex; align-items:center; gap:7px; font-size:14.5px; color:var(--muted); cursor:pointer}
+  .check input{accent-color:var(--model); width:15px; height:15px}
+
+  /* ---------- result ---------- */
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:4px;
+    box-shadow:var(--shadow); padding:22px; margin-bottom:18px;
+  }
+  .card[hidden]{display:none}
+  .card h2{
+    font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.13em; color:var(--muted);
+    margin:0 0 16px; display:flex; align-items:center; gap:8px;
+  }
+  .swatch{width:9px; height:9px; border-radius:1px; flex:none}
+  .sw-model{background:var(--model)} .sw-market{background:var(--market)}
+
+  .row{display:grid; grid-template-columns:1fr auto auto; gap:14px; align-items:baseline; padding:7px 0}
+  .fname{font-family:Oswald,sans-serif; font-size:21px; font-weight:500; line-height:1.2}
+  .pct,.ml{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  .pct{font-size:22px; font-weight:600; min-width:4.4ch; text-align:right}
+  .ml{font-size:15px; color:var(--muted); min-width:5.5ch; text-align:right}
+
+  .bar{display:flex; height:12px; border-radius:2px; overflow:hidden; margin:14px 0 6px; background:var(--surface-2)}
+  .bar i{display:block; transition:flex-grow .45s cubic-bezier(.22,.7,.3,1)}
+  .bar .top{background:var(--model)}
+  .bar .bot{background:var(--model-soft)}
+  .bar.market .top{background:var(--market)}
+  .bar.market .bot{background:var(--market-soft)}
+  @media (prefers-reduced-motion:reduce){ .bar i{transition:none} }
+
+  .note{font-size:13.5px; color:var(--muted); margin:12px 0 0}
+  .note code{font-family:"IBM Plex Mono",monospace; font-size:12.5px}
+
+  /* ---------- history ---------- */
+  .meeting{border-top:1px solid var(--line-soft); padding:15px 0 3px}
+  .meeting:first-of-type{border-top:0; padding-top:2px}
+  .mhead{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:9px}
+  .mdate{font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--muted); letter-spacing:.03em}
+  .tag{
+    font-family:"IBM Plex Mono",monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:.09em; padding:3px 7px; border-radius:2px; border:1px solid var(--line);
+    color:var(--muted); white-space:nowrap;
+  }
+  .tag.unseen{border-color:var(--model); color:var(--model)}
+  .outcome{font-size:14.5px; margin:9px 0 0}
+  .outcome b{font-weight:600; color:var(--win)}
+  .hit{color:var(--win); font-weight:600} .miss{color:var(--loss); font-weight:600}
+  .empty{color:var(--muted); font-size:14.5px; margin:0}
+
+  footer{margin-top:34px; padding-top:16px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  footer p{margin:0 0 9px; max-width:66ch}
+  footer a{color:var(--market)}
+  .warn{
+    border-left:2px solid var(--model); padding-left:12px; margin-top:14px;
+    font-size:13px; color:var(--muted);
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Octagon Odds</h1>
+      <div class="asof" id="asof">loading</div>
+    </div>
+    <p class="lede">
+      Pick two UFC fighters. A neural network prices the fight from career history,
+      physical attributes and rankings &mdash; and never sees a bookmaker's line.
+      Where the two have actually met, the closing Vegas number is shown next to it.
+    </p>
+  </header>
+
+  <div class="pickers">
+    <div class="field">
+      <label for="fa">Fighter one</label>
+      <input type="text" id="fa" autocomplete="off" spellcheck="false" placeholder="Start typing a name&hellip;"
+             role="combobox" aria-expanded="false" aria-controls="ma" aria-autocomplete="list">
+      <div class="menu" id="ma" role="listbox" hidden></div>
+    </div>
+    <div class="vs">vs</div>
+    <div class="field">
+      <label for="fb">Fighter two</label>
+      <input type="text" id="fb" autocomplete="off" spellcheck="false" placeholder="Start typing a name&hellip;"
+             role="combobox" aria-expanded="false" aria-controls="mb" aria-autocomplete="list">
+      <div class="menu" id="mb" role="listbox" hidden></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <label class="check"><input type="checkbox" id="title"> Championship bout (5 rounds)</label>
+  </div>
+
+  <div class="card" id="result" hidden>
+    <h2><span class="swatch sw-model"></span> Model&rsquo;s odds <span id="ctxline" style="letter-spacing:.04em"></span></h2>
+    <div id="rows"></div>
+    <div class="bar"><i class="top" id="bar-a"></i><i class="bot" id="bar-b"></i></div>
+    <p class="note" id="modelnote"></p>
+  </div>
+
+  <div class="card" id="market" hidden>
+    <h2><span class="swatch sw-market"></span> Vegas closing line</h2>
+    <div id="meetings"></div>
+  </div>
+
+  <footer>
+    <p><b>How to read this.</b> A percentage is the model&rsquo;s estimate of how often that
+    fighter wins this matchup. The <code>+/&minus;</code> figure is the same number as a fair
+    American moneyline, with no bookmaker margin added &mdash; so the two sides always
+    sum to 100%, which a real sportsbook&rsquo;s never do.</p>
+    <p>Model odds are priced as of the last event in the dataset. Fighters are frozen at
+    the careers they had then; this is not a live feed.</p>
+    <div class="warn">
+      On held-out fights the model is right about 63% of the time and the closing
+      line about 70%. It does not beat the market and finds no betting edge &mdash;
+      when it disagrees with Vegas, Vegas is usually right. Built as a
+      learning project, not a wagering tool.
+    </div>
+  </footer>
+</div>
+
+<script id="model-data" type="application/json">__MODEL_DATA__</script>
+<script>
+(async function () {
+  const holder = document.getElementById('model-data');
+  const raw = holder ? holder.textContent.trim() : '';
+  const DATA = raw.length > 200 && raw[0] === '{'
+    ? JSON.parse(raw)
+    : await fetch('model_data.json').then(r => r.json());
+
+  const F = DATA.featureNames;
+  const IDX = {};
+  ['division_fights','changed_division','div_rank_score','is_champion','is_ranked']
+    .forEach(n => IDX[n] = F.indexOf(n));
+
+  /* ---------- the network, replayed ---------- */
+  function linear(x, W, b) {
+    const out = new Float64Array(W.length);
+    for (let i = 0; i < W.length; i++) {
+      let sum = b[i], row = W[i];
+      for (let j = 0; j < row.length; j++) sum += row[j] * x[j];
+      out[i] = sum;
+    }
+    return out;
+  }
+  function layerNorm(x, gamma, beta) {
+    let mean = 0;
+    for (let i = 0; i < x.length; i++) mean += x[i];
+    mean /= x.length;
+    let variance = 0;
+    for (let i = 0; i < x.length; i++) variance += (x[i] - mean) ** 2;
+    variance /= x.length;
+    const denominator = Math.sqrt(variance + 1e-5);
+    const out = new Float64Array(x.length);
+    for (let i = 0; i < x.length; i++) out[i] = ((x[i] - mean) / denominator) * gamma[i] + beta[i];
+    return out;
+  }
+  function silu(x) {
+    const out = new Float64Array(x.length);
+    for (let i = 0; i < x.length; i++) out[i] = x[i] / (1 + Math.exp(-x[i]));
+    return out;
+  }
+  function stack(blocks, x) {
+    for (const block of blocks) x = silu(layerNorm(linear(x, block.W, block.b), block.g, block.be));
+    return x;
+  }
+  const join = (...parts) => {
+    const out = [];
+    for (const part of parts) for (let i = 0; i < part.length; i++) out.push(part[i]);
+    return out;
+  };
+
+  function score(net, encodedA, encodedB, context) {
+    const diff = new Float64Array(encodedA.length);
+    for (let i = 0; i < encodedA.length; i++) diff[i] = encodedA[i] - encodedB[i];
+    const hidden = stack(net.pair, join(encodedA, encodedB, diff, context));
+    let sum = net.outB;
+    for (let i = 0; i < hidden.length; i++) sum += net.outW[i] * hidden[i];
+    return sum;
+  }
+
+  function runOne(net, xa, xb, stanceA, stanceB, xc, division) {
+    const context = join(xc, net.wcEmb[division]);
+    const encodedA = stack(net.encoder, join(xa, net.stEmb[stanceA], context));
+    const encodedB = stack(net.encoder, join(xb, net.stEmb[stanceB], context));
+    // The antisymmetric step: swapping the fighters negates the logit exactly.
+    return score(net, encodedA, encodedB, context) - score(net, encodedB, encodedA, context);
+  }
+
+  /* ---------- feature assembly ---------- */
+  function featuresFor(fighter, division) {
+    const values = fighter.f.slice();
+    values[IDX.division_fights] = fighter.dc[division] || 0;
+    values[IDX.changed_division] = fighter.ld && division !== fighter.ld ? 1 : 0;
+    const rank = fighter.rk[division];
+    const ranked = rank !== undefined && rank !== null;
+    values[IDX.div_rank_score] = ranked ? Math.max(0, 16 - rank) / 16 : 0;
+    values[IDX.is_champion] = ranked && rank === 0 ? 1 : 0;
+    values[IDX.is_ranked] = ranked ? 1 : 0;
+    return values.map((value, i) => {
+      const filled = value === null || value === undefined || Number.isNaN(value)
+        ? DATA.medians[i] : value;
+      return (filled - DATA.means[i]) / DATA.stds[i];
+    });
+  }
+
+  function pickDivision(a, b) {
+    if (a.ld === b.ld) return a.ld;
+    const wa = DATA.divisionWeight[a.ld] || 0, wb = DATA.divisionWeight[b.ld] || 0;
+    if (wa === wb) return a.ld < b.ld ? a.ld : b.ld;
+    return wa > wb ? a.ld : b.ld;
+  }
+
+  function predict(keyA, keyB, isTitle) {
+    const a = DATA.fighters[keyA], b = DATA.fighters[keyB];
+    const division = pickDivision(a, b);
+    const rounds = isTitle ? 5 : 3;
+    const rawContext = [rounds, isTitle ? 1 : 0, /women/i.test(division) ? 1 : 0];
+    const xc = rawContext.map((v, i) => (v - DATA.ctxMeans[i]) / DATA.ctxStds[i]);
+    const divisionIndex = Math.max(0, DATA.divisionVocab.indexOf(division));
+    const stanceA = Math.max(0, DATA.stanceVocab.indexOf(a.st));
+    const stanceB = Math.max(0, DATA.stanceVocab.indexOf(b.st));
+    const xa = featuresFor(a, division), xb = featuresFor(b, division);
+    let total = 0;
+    for (const net of DATA.models) {
+      total += 1 / (1 + Math.exp(-runOne(net, xa, xb, stanceA, stanceB, xc, divisionIndex)));
+    }
+    return { probability: total / DATA.models.length, division, rounds };
+  }
+
+  // Exposed so scripts/verify_web.js can check the browser maths against PyTorch.
+  globalThis.__predict = predict;
+  globalThis.__DATA = DATA;
+
+  const american = p => {
+    const q = Math.min(Math.max(p, 1e-6), 1 - 1e-6);
+    const value = q >= 0.5 ? -100 * q / (1 - q) : 100 * (1 - q) / q;
+    return (value > 0 ? '+' : '') + Math.round(value);
+  };
+  const pct = p => (p * 100).toFixed(1) + '%';
+
+  /* ---------- fighter search ---------- */
+  const KEYS = Object.keys(DATA.fighters).sort();
+  const chosen = { fa: null, fb: null };
+
+  function search(term) {
+    const q = term.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!q) return [];
+    const starts = [], contains = [];
+    for (const key of KEYS) {
+      if (key.startsWith(q)) starts.push(key);
+      else if (key.includes(q)) contains.push(key);
+      if (starts.length > 40) break;
+    }
+    return starts.concat(contains).slice(0, 8);
+  }
+
+  function wire(inputId, menuId, slot) {
+    const input = document.getElementById(inputId);
+    const menu = document.getElementById(menuId);
+    let active = -1, options = [];
+
+    const close = () => { menu.hidden = true; input.setAttribute('aria-expanded', 'false'); active = -1; };
+
+    function open(list) {
+      options = list;
+      if (!list.length) return close();
+      menu.innerHTML = '';
+      list.forEach((key, i) => {
+        const fighter = DATA.fighters[key];
+        const item = document.createElement('div');
+        item.className = 'opt';
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', String(i === active));
+        item.innerHTML = '<b></b><span></span>';
+        item.querySelector('b').textContent = fighter.n;
+        item.querySelector('span').textContent = fighter.rec + ' UFC · ' + fighter.ld;
+        item.addEventListener('mousedown', event => { event.preventDefault(); choose(key); });
+        menu.appendChild(item);
+      });
+      menu.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    }
+
+    function choose(key) {
+      chosen[slot] = key;
+      input.value = DATA.fighters[key].n;
+      close();
+      render();
+    }
+
+    input.addEventListener('input', () => { chosen[slot] = null; active = -1; open(search(input.value)); render(); });
+    input.addEventListener('focus', () => { if (input.value && !chosen[slot]) open(search(input.value)); });
+    input.addEventListener('blur', () => setTimeout(close, 120));
+    input.addEventListener('keydown', event => {
+      if (menu.hidden || !options.length) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        active = (active + (event.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length;
+        [...menu.children].forEach((el, i) => el.setAttribute('aria-selected', String(i === active)));
+        menu.children[active].scrollIntoView({ block: 'nearest' });
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        choose(options[active >= 0 ? active : 0]);
+      } else if (event.key === 'Escape') close();
+    });
+  }
+
+  /* ---------- rendering ---------- */
+  const el = id => document.getElementById(id);
+
+  function fighterRow(name, probability) {
+    return '<div class="row"><div class="fname"></div>'
+      + '<div class="pct">' + pct(probability) + '</div>'
+      + '<div class="ml">' + american(probability) + '</div></div>';
+  }
+
+  function render() {
+    const keyA = chosen.fa, keyB = chosen.fb;
+    const result = el('result'), market = el('market');
+    if (!keyA || !keyB || keyA === keyB) {
+      result.hidden = true; market.hidden = true;
+      return;
+    }
+    const isTitle = el('title').checked;
+    const { probability, division, rounds } = predict(keyA, keyB, isTitle);
+    const a = DATA.fighters[keyA], b = DATA.fighters[keyB];
+
+    el('ctxline').textContent = '· ' + division + ', ' + rounds + ' rounds';
+    el('rows').innerHTML = fighterRow(a.n, probability) + fighterRow(b.n, 1 - probability);
+    const names = el('rows').querySelectorAll('.fname');
+    names[0].textContent = a.n;
+    names[1].textContent = b.n;
+    el('bar-a').style.flexGrow = probability;
+    el('bar-b').style.flexGrow = 1 - probability;
+    el('modelnote').textContent =
+      'Priced as of ' + DATA.meta.referenceDate + ', using each fighter’s career up to that date. '
+      + 'No bookmaker line is an input.';
+    result.hidden = false;
+
+    renderMeetings(keyA, keyB, a, b);
+  }
+
+  function renderMeetings(keyA, keyB, a, b) {
+    const market = el('market');
+    const bouts = (DATA.meetings[[keyA, keyB].sort().join('|')] || [])
+      .slice().sort((x, y) => y.d.localeCompare(x.d));
+    const target = el('meetings');
+    market.hidden = false;
+
+    if (!bouts.length) {
+      target.innerHTML = '<p class="empty">' + a.n + ' and ' + b.n
+        + ' have never fought in the UFC, so there is no closing line to compare against. '
+        + 'The model’s number above is a pure hypothetical.</p>';
+      return;
+    }
+
+    target.innerHTML = bouts.map(bout => {
+      const flip = bout.a !== keyA;                       // orient the row to fighter one
+      const marketProbA = bout.mp === null ? null : (flip ? 1 - bout.mp : bout.mp);
+      const modelProbA = flip ? 1 - bout.mm : bout.mm;
+      const oddsA = flip ? bout.bo : bout.ao;
+      const oddsB = flip ? bout.ao : bout.bo;
+      const winnerName = DATA.fighters[bout.w] ? DATA.fighters[bout.w].n : bout.w;
+      const modelPick = modelProbA >= 0.5 ? keyA : keyB;
+      const unseen = bout.s === 'test';
+
+      const line = marketProbA === null
+        ? '<p class="empty">No closing line recorded for this bout.</p>'
+        : '<div class="row"><div class="fname">' + esc(a.n) + '</div>'
+          + '<div class="pct">' + pct(marketProbA) + '</div>'
+          + '<div class="ml">' + (oddsA > 0 ? '+' : '') + oddsA + '</div></div>'
+          + '<div class="row"><div class="fname">' + esc(b.n) + '</div>'
+          + '<div class="pct">' + pct(1 - marketProbA) + '</div>'
+          + '<div class="ml">' + (oddsB > 0 ? '+' : '') + oddsB + '</div></div>'
+          + '<div class="bar market"><i class="top" style="flex-grow:' + marketProbA
+          + '"></i><i class="bot" style="flex-grow:' + (1 - marketProbA) + '"></i></div>';
+
+      return '<div class="meeting">'
+        + '<div class="mhead"><span class="mdate">' + bout.d + '</span>'
+        + '<span class="tag' + (unseen ? ' unseen' : '') + '">'
+        + (unseen ? 'model never saw this fight' : 'used in training') + '</span></div>'
+        + line
+        + '<p class="outcome">Winner: <b>' + esc(winnerName) + '</b> by '
+        + esc(methodLabel(bout.m)) + '. The model had '
+        + esc(DATA.fighters[modelPick].n) + ' at ' + pct(Math.max(modelProbA, 1 - modelProbA))
+        + ' — <span class="' + (modelPick === bout.w ? 'hit">correct' : 'miss">wrong')
+        + '</span>.</p></div>';
+    }).join('');
+  }
+
+  const METHODS = {
+    ko_tko: 'KO/TKO', submission: 'submission', decision_unanimous: 'unanimous decision',
+    decision_split: 'split decision', decision_majority: 'majority decision', other: 'other means'
+  };
+  const methodLabel = m => METHODS[m] || m;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ---------- boot ---------- */
+  el('asof').textContent = 'data through ' + DATA.meta.referenceDate
+    + ' · ' + DATA.meta.nFighters.toLocaleString() + ' fighters';
+  wire('fa', 'ma', 'fa');
+  wire('fb', 'mb', 'fb');
+  el('title').addEventListener('change', render);
+
+  // Open on a matchup worth looking at rather than an empty form.
+  if (DATA.fighters['sean o malley'] && DATA.fighters['umar nurmagomedov']) {
+    chosen.fa = 'sean o malley'; chosen.fb = 'umar nurmagomedov';
+    el('fa').value = DATA.fighters['sean o malley'].n;
+    el('fb').value = DATA.fighters['umar nurmagomedov'].n;
+    render();
+  }
+})();
+</script>
