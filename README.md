@@ -9,8 +9,8 @@ bookmakers' line.
 ```
 $ python -m mma_predictor.predict "Jon Jones" "Stipe Miocic"
 
-  Jon Jones      67.7%     -210  ###########################
-  Stipe Miocic   32.3%     +210  #############
+  Jon Jones      89.0%     -808  ####################################
+  Stipe Miocic   11.0%     +808  ####
 ```
 
 ## Results
@@ -28,13 +28,18 @@ tested on fights that happened after everything it learned from:
 Closing lines exist from 2010 onward and for about 79% of bouts. Everything
 below is scored on the test split alone.
 
-| Model | Accuracy | Log loss | AUC |
-|---|---:|---:|---:|
-| Coin flip | 0.505 | 0.6931 | 0.500 |
-| Elo rating only | 0.569 | 0.6788 | 0.605 |
-| Logistic regression, same features | 0.624 | 0.6415 | 0.682 |
-| **This model** | **0.628** | **0.6381** | **0.687** |
-| *Betting market (closing line)* | *0.704* | *0.5816* | *0.764* |
+| Model | Accuracy | Log loss |
+|---|---:|---:|
+| Coin flip | 0.505 | 0.6931 |
+| Elo rating only | 0.569 | 0.6788 |
+| Logistic regression, same features | 0.624 | 0.6415 |
+| **This model** | **0.628** | **0.6381** |
+| *Betting market (closing line)* | *0.704* | *0.5816* |
+
+Accuracy is how often the favourite it picks actually wins. **Log loss is the
+metric that matters**: it scores the probability rather than the pick, so calling
+a fight at 90% and being wrong costs far more than being wrong at 51%. Lower is
+better, and 0.6931 is what you get by saying 50/50 every time.
 
 Three things are true at once, and the project is only worth reading if all
 three are said plainly:
@@ -113,7 +118,7 @@ solution through a nonlinear encoder from a random start, and there was no reaso
 it would land somewhere at least as good; it finished marginally behind. With it,
 the linear model sits inside the hypothesis space and the deep branch only learns
 the correction. Ablate it with `--no-linear-skip` and test log loss goes back from
-0.6426 to 0.6485.
+0.6381 to 0.6423.
 
 Even so, be honest about the size of the win: a paired t-test over the 1,587 test
 bouts gives **p = 0.14**, and the bootstrap 95% CI for the gap is
@@ -139,15 +144,20 @@ fighter's previous bouts. Run `scripts/audit_leakage.py`:
 
 ```
 Bouts where BOTH fighters are making their UFC debut: 451
-(neither man has a previous UFC fight, so every column below must be empty)
+(neither man has a previous UFC fight, so every column below must be empty,
+ and 0.50 would mean the column says nothing about who won)
 
-column                      populated   AUC vs outcome
+column                      populated  predicts winner
 avg_sig_str_landed                 70            0.547
 avg_sig_str_pct                    81            0.545
 ```
 
 A column that must be empty is populated in 70 bouts and predicts the winner.
-**Excluded.** Every feature the model sees is computed from raw bout history,
+**Excluded** — and then
+rebuilt honestly: the model now carries its own strike and takedown rates,
+accumulated from raw round-by-round scorecards over each fighter's *previous*
+bouts only. Same quantities, with the cutoff enforced here rather than trusted.
+Every feature the model sees is computed in this repository from raw fight data,
 static fighter profiles, or as-of-date rankings.
 
 **2. Missingness is a trap.** A fighter with no reach listed loses **91%** of

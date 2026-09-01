@@ -35,17 +35,3 @@ BETTING TEST vs the closing line (flat $100 stakes, real prices)
   edge > 8%:  681 bets  win rate 0.341  ROI -9.62%  ($-6,548)
   edge > 12%:  485 bets  win rate 0.311  ROI -11.67%  ($-5,660)
   -> 80% of our edge>5% bets are on the market's underdog.
-
-TOP FEATURES (permutation importance, test set)
-  age                        +0.02100 log loss when shuffled
-  days_since_debut           +0.00600 log loss when shuffled
-  sig_str_absorbed_pm        +0.00519 log loss when shuffled
-  win_streak                 +0.00436 log loss when shuffled
-  takedowns_per15            +0.00391 log loss when shuffled
-  elo_off_peak               +0.00198 log loss when shuffled
-  strike_differential_pm     +0.00196 log loss when shuffled
-  elo                        +0.00183 log loss when shuffled
-  control_differential       +0.00171 log loss when shuffled
-  div_rank_score             +0.00165 log loss when shuffled
-  sig_str_accuracy           +0.00160 log loss when shuffled
-  finish_rate                +0.00143 log loss when shuffled

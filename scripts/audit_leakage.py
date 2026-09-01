@@ -24,9 +24,10 @@ def main() -> None:
     print(
         "For these bouts neither fighter has a previous UFC fight, so every\n"
         '"average over previous fights" below must be empty. Any predictive\n'
-        "power in them is information from inside the fight.\n"
+        "power in them is information from inside the fight. 0.50 means the\n"
+        "column tells you nothing about who won, which is what we should see.\n"
     )
-    print(f"{'column':<26}{'populated':>11}{'AUC vs outcome':>17}")
+    print(f"{'column':<26}{'populated':>11}{'predicts winner':>17}")
     print("-" * 54)
     for name in ROLLING_FEATURES:
         diff = both_debut[f"audit_a_{name}"].fillna(0) - both_debut[f"audit_b_{name}"].fillna(0)
@@ -35,7 +36,7 @@ def main() -> None:
         print(f"{name:<26}{populated:>11}{auc:>17.3f}")
 
     print("\nFor comparison, the career features this project computes itself:")
-    print(f"{'column':<26}{'populated':>11}{'AUC vs outcome':>17}")
+    print(f"{'column':<26}{'populated':>11}{'predicts winner':>17}")
     print("-" * 54)
     for name in ("elo", "ufc_fights", "win_rate", "form_last5"):
         diff = both_debut[f"a_{name}"].fillna(0) - both_debut[f"b_{name}"].fillna(0)
