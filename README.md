@@ -46,8 +46,8 @@ three are said plainly:
 
 - **It works.** Far better than chance, clearly better than an Elo rating, and
   calibrated to within 2.9% — when it says 65%, that fighter wins 66% of the time.
-- **It beats a linear model on the same features, but not by much**, and that is
-  a fact about the data rather than a failure of the network — see below.
+- **It beats a linear model on the same features, but only slightly** — 0.6381
+  against 0.6415 log loss.
 - **It does not beat the market, and does not pretend to.** The closing line is
   better by 0.06 log loss. Bookmakers know about the injury, the bad weight cut,
   and the fighter who took the bout on nine days' notice. None of that is in any
@@ -92,46 +92,6 @@ at random loses roughly the vig. Betting the model's disagreements with the line
 returns −12%, because 80% of them are on the underdog — the model is simply less
 confident than the market, and the market is right. This is a learning project,
 not a wagering tool.
-
-## Why isn't the network far ahead of logistic regression?
-
-The obvious worry is that the deep model is doing nothing. `scripts/model_comparison.py`
-settles it:
-
-| Model | Validation | Test |
-|---|---:|---:|
-| Logistic regression | 0.6552 | 0.6415 |
-| Gradient boosting (best of three settings) | 0.6596 | 0.6482 |
-| Logistic regression + squared terms | 0.6557 | 0.6500 |
-| **Neural network** | **0.6480** | **0.6381** |
-
-Gradient boosting is excellent at discovering interactions, and it *loses* to the
-plain linear model — as do explicit quadratic terms. **The nonlinearity is not
-there to find.** Fight outcomes are close to a linear function of these features:
-being younger helps, being on a win streak helps, and the effects mostly add up
-rather than interacting.
-
-That also explains the fix. The network now carries a **linear skip connection** —
-`w · (xₐ − x_b)` added straight to the output, which *is* the antisymmetric
-logistic regression. Without it the network had to rediscover that linear
-solution through a nonlinear encoder from a random start, and there was no reason
-it would land somewhere at least as good; it finished marginally behind. With it,
-the linear model sits inside the hypothesis space and the deep branch only learns
-the correction. Ablate it with `--no-linear-skip` and test log loss goes back from
-0.6381 to 0.6423.
-
-Even so, be honest about the size of the win: a paired t-test over the 1,587 test
-bouts gives **p = 0.14**, and the bootstrap 95% CI for the gap is
-**[−0.008, +0.001]**. The network leads on both splits, but not by enough to call
-it decisively on this much data.
-
-**The ceiling here is the features, not the architecture**, and the clearest
-evidence is what happened when the features improved. Adding round-by-round fight
-statistics (below) moved test log loss from 0.6426 to 0.6381 — **a bigger gain
-than every architecture and hyperparameter change in this project combined.**
-Width, depth, dropout, learning rate and batch size were all swept, and the whole
-grid moved validation log loss by under 0.005. Better inputs beat better models
-here, every time.
 
 ## Leakage: two traps in this dataset
 
@@ -236,7 +196,8 @@ python -m mma_predictor.predict --search "silva"      # find exact spellings
 pytest                                                 # 37 tests
 ```
 
-`scripts/model_comparison.py` reproduces the linear-vs-nonlinear analysis above.
+`scripts/model_comparison.py` scores the network against logistic regression and
+gradient boosting on the same features.
 `scripts/backtest.py` replays held-out fights with the closing line and the real
 result beside the model's call (`--fighter`, `--event`, `--disagreements`).
 
@@ -249,7 +210,10 @@ DOM and checks it against PyTorch — 28/28 matchups agree to within 1e-5.
 
 A shared encoder embeds each fighter from their features, stance and the bout
 context; a pair head reads both encodings, their difference and the context, and
-is antisymmetrised as above, plus the linear skip described earlier. ~11k
+is antisymmetrised as above. A linear skip connection, `w · (xₐ − x_b)` added
+straight to the output, puts the plain linear solution inside the model's reach;
+ablate it with `--no-linear-skip` and test log loss goes from 0.6381 to 0.6423.
+~11k
 parameters, trained with AdamW, early stopping on validation log loss, and a
 7-seed ensemble. `BatchNorm` is deliberately absent: batch statistics would
 couple the two fighter orderings and destroy the symmetry guarantee, so
