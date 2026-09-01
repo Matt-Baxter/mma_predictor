@@ -57,3 +57,30 @@ def test_cross_division_matchup_is_still_order_independent(predictor):
     backward = predictor.predict("Tom Aspinall", "Alex Pereira")
     assert forward.weight_class == backward.weight_class
     assert forward.probability_a == pytest.approx(backward.probability_b, abs=1e-6)
+
+
+def test_live_features_match_the_training_row(predictor):
+    """The prediction path must build the same features the model trained on.
+
+    These are two separate code paths over the same definitions: the training
+    pass fills a feature table, while predict.py rebuilds a fighter from the
+    stored snapshot. They drifted once -- the in-fight rates were added to the
+    training pass only, so every live prediction silently median-imputed 17 of
+    its 58 inputs. Replaying a known bout and comparing feature by feature is
+    the check that catches that.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from mma_predictor.features import FIGHTER_FEATURES, load_features
+
+    frame = load_features()
+    bout = frame[frame.fight_url == frame.iloc[len(frame) // 2].fight_url].iloc[0]
+    snapshot = predictor._snapshot_for(pd.Timestamp(bout.date))
+    for prefix, key in (("a_", bout.a_key), ("b_", bout.b_key)):
+        rebuilt = predictor._side(key, pd.Timestamp(bout.date), bout.weight_class, snapshot)
+        for name in FIGHTER_FEATURES:
+            assert np.isclose(
+                float(bout[prefix + name]), float(rebuilt.get(name, np.nan)),
+                rtol=1e-6, equal_nan=True,
+            ), f"{prefix}{name} differs between training and prediction paths"

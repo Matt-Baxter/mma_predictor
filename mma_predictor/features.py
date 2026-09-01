@@ -633,8 +633,17 @@ def _slot_order(fight_id: str) -> bool:
     return digest % 2 == 0
 
 
-def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) -> pd.DataFrame:
-    """One chronological pass over every UFC bout, emitting pre-fight features."""
+def build_features(
+    raw_dir: Path = RAW_DIR,
+    era_start: str = MODEL_ERA_START,
+    stop_at: pd.Timestamp | None = None,
+) -> pd.DataFrame:
+    """One chronological pass over every UFC bout, emitting pre-fight features.
+
+    ``stop_at`` halts the walk before that date, so the returned fighter
+    snapshot holds each career exactly as it stood going into it. That is what
+    makes an honest "what would the model have said back then?" possible.
+    """
     fights = pd.read_csv(raw_dir / "ufc_fights.csv")
     fights["date"] = pd.to_datetime(fights["date"], errors="coerce")
     fights = fights.dropna(subset=["date", "f1_name", "f2_name", "f1_result"])
@@ -711,6 +720,8 @@ def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) ->
 
     current_date = None
     for fight in fights.itertuples(index=False):
+        if stop_at is not None and fight.date >= stop_at:
+            break
         if current_date is not None and fight.date != current_date:
             flush(pending)
             pending = []

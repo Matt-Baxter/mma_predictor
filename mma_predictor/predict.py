@@ -25,6 +25,7 @@ from .features import (
     FighterState,
     RankingLookup,
     _static_features,
+    build_features,
 )
 from .parsing import normalize_name, pick_bout_division, probability_to_american
 from .train import ensemble_probabilities, load_checkpoint
@@ -90,6 +91,8 @@ class Predictor:
                 "score a hypothetical bout. Use artifacts/model.pt instead."
             )
         self.snapshot = json.loads(Path(snapshot_path).read_text())
+        self._raw_dir = raw_dir
+        self._replayed: dict[str, dict] = {}
         self._display = {key: value["display_name"] for key, value in self.snapshot.items()}
 
         rankings = pd.read_csv(raw_dir / "ufc_rankings_dataset.csv")
@@ -98,6 +101,11 @@ class Predictor:
             name_key=rankings["fighter"].map(normalize_name),
         ).dropna(subset=["date", "rank"])
         self.rankings = RankingLookup(rankings)
+        # Last event in the data; anything earlier needs a replay.
+        self.reference_date = max(
+            (v["state"]["last_date"] for v in self.snapshot.values() if v["state"]["last_date"]),
+            default="2100-01-01",
+        )
 
     # ------------------------------------------------------------- lookup
     def resolve(self, name: str) -> str:
@@ -123,10 +131,35 @@ class Predictor:
         return hits[:limit]
 
     # ------------------------------------------------------------ scoring
-    def _side(self, key: str, as_of: pd.Timestamp, weight_class: str) -> dict[str, float]:
-        entry = self.snapshot[key]
+    def _snapshot_for(self, as_of: pd.Timestamp) -> dict:
+        """Careers as they stood on ``as_of``, replayed rather than assumed.
+
+        The stored snapshot is every fighter's *final* career. Pricing a 2019
+        bout against it would hand a debutant a record he had not yet built, and
+        a layoff measured against a fight years in his future. Re-running the
+        chronological pass with a cutoff is the only honest way to do it.
+        """
+        key = str(as_of.date())
+        if key not in self._replayed:
+            frame = build_features(raw_dir=self._raw_dir, stop_at=as_of)
+            self._replayed[key] = frame.attrs["fighter_snapshot"]
+        return self._replayed[key]
+
+    def _side(
+        self, key: str, as_of: pd.Timestamp, weight_class: str, snapshot: dict | None = None
+    ) -> dict[str, float]:
+        if snapshot is None:
+            entry = self.snapshot[key]
+        else:
+            # Absent from a replayed snapshot means he had not debuted yet, so
+            # he carries no UFC history at all -- not his eventual career.
+            entry = snapshot.get(key)
+            if entry is None:
+                entry = dict(self.snapshot[key])
+                entry["state"] = FighterState().to_json()
         state = FighterState.from_json(entry["state"])
         features = state.career_features(as_of, weight_class)
+        features.update(state.in_fight_features())
         static = dict(entry["static"])
         static["dob"] = pd.to_datetime(static.get("dob")) if static.get("dob") else pd.NaT
         for numeric in ("height_in", "reach_in", "listed_weight"):
@@ -155,8 +188,14 @@ class Predictor:
         )
         scheduled_rounds = scheduled_rounds or (5 if title else 3)
 
-        side_a = self._side(key_a, as_of_ts, weight_class)
-        side_b = self._side(key_b, as_of_ts, weight_class)
+        # A date before the end of the data means replaying careers to it.
+        snapshot = (
+            self._snapshot_for(as_of_ts)
+            if as_of is not None and as_of_ts < pd.Timestamp(self.reference_date)
+            else None
+        )
+        side_a = self._side(key_a, as_of_ts, weight_class, snapshot)
+        side_b = self._side(key_b, as_of_ts, weight_class, snapshot)
         row: dict = {
             "weight_class": weight_class,
             "scheduled_rounds": float(scheduled_rounds),

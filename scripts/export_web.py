@@ -125,6 +125,7 @@ def main() -> None:
             continue  # never actually competed in the UFC
         last_division = entry["last_weight_class"]
         features = state.career_features(reference_date, last_division)
+        features.update(state.in_fight_features())
         static = dict(entry["static"])
         static["dob"] = pd.to_datetime(static.get("dob")) if static.get("dob") else pd.NaT
         for numeric in ("height_in", "reach_in", "listed_weight"):

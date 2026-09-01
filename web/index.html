@@ -178,14 +178,20 @@
   </div>
 
   <div class="card" id="result" hidden>
-    <h2><span class="swatch sw-model"></span> Model&rsquo;s odds <span id="ctxline" style="letter-spacing:.04em"></span></h2>
+    <h2><span class="swatch sw-model"></span> Model&rsquo;s odds today <span id="ctxline" style="letter-spacing:.04em"></span></h2>
     <div id="rows"></div>
     <div class="bar"><i class="top" id="bar-a"></i><i class="bot" id="bar-b"></i></div>
     <p class="note" id="modelnote"></p>
   </div>
 
   <div class="card" id="market" hidden>
-    <h2><span class="swatch sw-market"></span> Vegas closing line</h2>
+    <h2><span class="swatch sw-market"></span> Past meetings</h2>
+    <p class="note" id="pasthint" style="margin:-6px 0 14px">
+      Each bout below is priced twice: the closing Vegas line, and what this model
+      would have said <em>at the time</em>, knowing only what both fighters had
+      done before that night. That is why those percentages differ from the
+      career-to-date number above.
+    </p>
     <div id="meetings"></div>
   </div>
 
@@ -425,8 +431,8 @@
     el('bar-a').style.flexGrow = probability;
     el('bar-b').style.flexGrow = 1 - probability;
     el('modelnote').textContent =
-      'Priced as of ' + DATA.meta.referenceDate + ', using each fighter’s career up to that date. '
-      + 'No bookmaker line is an input.';
+      'Priced as of ' + DATA.meta.referenceDate + ', using each fighter’s full career up to '
+      + 'that date. No bookmaker line is an input.';
     result.hidden = false;
 
     renderMeetings(keyA, keyB, a, b);
@@ -438,11 +444,13 @@
       .slice().sort((x, y) => y.d.localeCompare(x.d));
     const target = el('meetings');
     market.hidden = false;
+    el('pasthint').hidden = false;
 
     if (!bouts.length) {
-      target.innerHTML = '<p class="empty">' + a.n + ' and ' + b.n
+      target.innerHTML = '<p class="empty">' + esc(a.n) + ' and ' + esc(b.n)
         + ' have never fought in the UFC, so there is no closing line to compare against. '
         + 'The model’s number above is a pure hypothetical.</p>';
+      el('pasthint').hidden = true;
       return;
     }
 
@@ -473,7 +481,7 @@
         + (unseen ? 'model never saw this fight' : 'used in training') + '</span></div>'
         + line
         + '<p class="outcome">Winner: <b>' + esc(winnerName) + '</b> by '
-        + esc(methodLabel(bout.m)) + '. The model had '
+        + esc(methodLabel(bout.m)) + '. Going in, the model had '
         + esc(DATA.fighters[modelPick].n) + ' at ' + pct(Math.max(modelProbA, 1 - modelProbA))
         + ' — <span class="' + (modelPick === bout.w ? 'hit">correct' : 'miss">wrong')
         + '</span>.</p></div>';

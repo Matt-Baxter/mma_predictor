@@ -9,8 +9,8 @@ bookmakers' line.
 ```
 $ python -m mma_predictor.predict "Jon Jones" "Stipe Miocic"
 
-  Jon Jones      89.0%     -808  ####################################
-  Stipe Miocic   11.0%     +808  ####
+  Jon Jones      90.6%     -969  ####################################
+  Stipe Miocic    9.4%     +969  ####
 ```
 
 ## Results
