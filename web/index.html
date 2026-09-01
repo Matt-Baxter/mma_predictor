@@ -130,7 +130,12 @@
     color:var(--muted); white-space:nowrap;
   }
   .tag.unseen{border-color:var(--model); color:var(--model)}
-  .outcome{font-size:14.5px; margin:9px 0 0}
+  .sublabel{
+    font-family:"IBM Plex Mono",monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:.09em; color:var(--muted); margin:12px 0 2px;
+  }
+  .sublabel b{color:var(--ink); font-weight:600}
+  .outcome{font-size:14.5px; margin:11px 0 0; padding-top:9px; border-top:1px dashed var(--line-soft)}
   .outcome b{font-weight:600; color:var(--win)}
   .hit{color:var(--win); font-weight:600} .miss{color:var(--loss); font-weight:600}
   .empty{color:var(--muted); font-size:14.5px; margin:0}
@@ -187,10 +192,8 @@
   <div class="card" id="market" hidden>
     <h2><span class="swatch sw-market"></span> Past meetings</h2>
     <p class="note" id="pasthint" style="margin:-6px 0 14px">
-      Each bout below is priced twice: the closing Vegas line, and what this model
-      would have said <em>at the time</em>, knowing only what both fighters had
-      done before that night. That is why those percentages differ from the
-      career-to-date number above.
+      The closing Vegas line for each bout these two have already contested, and
+      whether the model called it right.
     </p>
     <div id="meetings"></div>
   </div>
@@ -464,29 +467,47 @@
       const modelPick = modelProbA >= 0.5 ? keyA : keyB;
       const unseen = bout.s === 'test';
 
-      const line = marketProbA === null
-        ? '<p class="empty">No closing line recorded for this bout.</p>'
-        : '<div class="row"><div class="fname">' + esc(a.n) + '</div>'
-          + '<div class="pct">' + pct(marketProbA) + '</div>'
-          + '<div class="ml">' + (oddsA > 0 ? '+' : '') + oddsA + '</div></div>'
-          + '<div class="row"><div class="fname">' + esc(b.n) + '</div>'
-          + '<div class="pct">' + pct(1 - marketProbA) + '</div>'
-          + '<div class="ml">' + (oddsB > 0 ? '+' : '') + oddsB + '</div></div>'
-          + '<div class="bar market"><i class="top" style="flex-grow:' + marketProbA
-          + '"></i><i class="bot" style="flex-grow:' + (1 - marketProbA) + '"></i></div>';
+      // Two priced blocks, each labelled with whose number it is, so the
+      // model's figure here is never mistaken for the career-to-date one above.
+      const priced = (probability, oddsLeft, oddsRight, kind) =>
+        '<div class="row"><div class="fname">' + esc(a.n) + '</div>'
+        + '<div class="pct">' + pct(probability) + '</div>'
+        + '<div class="ml">' + oddsLeft + '</div></div>'
+        + '<div class="row"><div class="fname">' + esc(b.n) + '</div>'
+        + '<div class="pct">' + pct(1 - probability) + '</div>'
+        + '<div class="ml">' + oddsRight + '</div></div>'
+        + '<div class="bar' + kind + '"><i class="top" style="flex-grow:' + probability
+        + '"></i><i class="bot" style="flex-grow:' + (1 - probability) + '"></i></div>';
+
+      const signed = value => (value > 0 ? '+' : '') + value;
+      const vegas = marketProbA === null
+        ? '<p class="empty" style="margin:10px 0 0">No closing line recorded for this bout.</p>'
+        : '<div class="sublabel">Vegas closing line</div>'
+          + priced(marketProbA, signed(oddsA), signed(oddsB), ' market');
+
+      const model = '<div class="sublabel">Based on where each fighter was by <b>'
+        + esc(longDate(bout.d)) + '</b>, the model would have predicted</div>'
+        + priced(modelProbA, american(modelProbA), american(1 - modelProbA), '');
 
       return '<div class="meeting">'
         + '<div class="mhead"><span class="mdate">' + bout.d + '</span>'
         + '<span class="tag' + (unseen ? ' unseen' : '') + '">'
         + (unseen ? 'model never saw this fight' : 'used in training') + '</span></div>'
-        + line
+        + vegas + model
         + '<p class="outcome">Winner: <b>' + esc(winnerName) + '</b> by '
-        + esc(methodLabel(bout.m)) + '. Going in, the model had '
-        + esc(DATA.fighters[modelPick].n) + ' at ' + pct(Math.max(modelProbA, 1 - modelProbA))
-        + ' — <span class="' + (modelPick === bout.w ? 'hit">correct' : 'miss">wrong')
+        + esc(methodLabel(bout.m)) + ' — the model had '
+        + esc(DATA.fighters[modelPick].n) + ' and was <span class="'
+        + (modelPick === bout.w ? 'hit">right' : 'miss">wrong')
         + '</span>.</p></div>';
     }).join('');
   }
+
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const longDate = iso => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return d + ' ' + MONTHS[m - 1] + ' ' + y;
+  };
 
   const METHODS = {
     ko_tko: 'KO/TKO', submission: 'submission', decision_unanimous: 'unanimous decision',
