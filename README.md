@@ -7,10 +7,10 @@ bookmakers' line.
 ### ▶ [Try it live](https://matt-baxter.github.io/mma_predictor/) — two search boxes, no install
 
 ```
-$ python -m mma_predictor.predict "Jon Jones" "Stipe Miocic"
+$ python -m mma_predictor.predict "Jon Jones" "Tom Aspinall"
 
-  Jon Jones      90.6%     -969  ####################################
-  Stipe Miocic    9.4%     +969  ####
+  Jon Jones      63.4%     -173  #########################
+  Tom Aspinall   36.6%     +173  ###############
 ```
 
 ## Results
