@@ -277,31 +277,13 @@ Two sources, both fetched by `scripts/build_dataset.py`:
 **On the odds gaps.** 21% of bouts have no closing line, which is a limitation of
 the public datasets rather than of reality — essentially every UFC fight is
 priced. The [Ultimate UFC dataset](https://www.kaggle.com/datasets/mdabbert/ultimate-ufc-dataset)
-used here simply has blank odds for 16% of 2023 and 25% of 2024, and stops three
-months before the fight results do. Its upstream repository
+used here has blank odds for 16% of 2023 and 25% of 2024, and stops three months
+before the fight results do. Its upstream repository
 ([shortlikeafox](https://github.com/shortlikeafox/ultimate_ufc_dataset)) is
-identical, and [jansen88/ufc-data](https://github.com/jansen88/ufc-data) covers
-less. The complete source everyone eventually scrapes is
-[BestFightOdds](https://www.bestfightodds.com/) — every UFC fight since 2008
-across a dozen books — reachable through [`ufcscraper`](https://pypi.org/project/ufcscraper/).
-`scripts/fetch_bestfightodds.py` implements that upgrade:
-
-```bash
-python scripts/fetch_bestfightodds.py      # scrape, then merge
-python scripts/build_dataset.py            # rebuild features to pick them up
-```
-
-It drives [`ufcscraper`](https://pypi.org/project/ufcscraper/) — UFCStats first
-for the fight and fighter ids, then BestFightOdds — and reduces the result to
-`(fight_id, fighter, closing line)`, joined on the UFCStats id already embedded
-in each `fight_url`. Lines only ever *fill* a bout the primary source left
-blank; an existing price is never overwritten. If the file is absent everything
-behaves exactly as it does today, so the scrape is optional.
-
-The scrape hits a third-party site and defaults to a one-second delay; run it
-once and keep the output. It has not been run end to end here, because this
-environment blocks `bestfightodds.com` at the network layer — the merge and the
-fallback are verified against synthetic data instead. And it widens the
-benchmark sample rather than changing the model, since odds are never an input.
+identical and [jansen88/ufc-data](https://github.com/jansen88/ufc-data) covers
+less, so there is no more complete public file to switch to;
+[BestFightOdds](https://www.bestfightodds.com/) has every fight but would have to
+be scraped. Since odds are only ever a benchmark here, the gap limits the size of
+the market comparison and nothing else.
 
 MIT licensed. For research and curiosity, not for wagering.
