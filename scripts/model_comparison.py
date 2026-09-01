@@ -101,10 +101,9 @@ def main() -> None:
     print("  - Gradient boosting and quadratic terms both LOSE to the plain linear")
     print("    model. Boosting is very good at finding interactions, so if exploitable")
     print("    nonlinearity existed here it would show up there. It does not.")
-    print("  - The network edges ahead only because it CONTAINS the linear model: the")
-    print("    skip connection w.(xa-xb) is that model, and the deep branch adds a")
-    print("    small correction on top. Remove it with --no-linear-skip and the")
-    print("    network drops back behind.\n")
+    print("  - The network leads on both splits. It contains the linear model -- the")
+    print("    skip connection w.(xa-xb) IS that model -- and the deep branch adds a")
+    print("    correction on top. Remove it with --no-linear-skip to see the effect.\n")
 
     print("  Is the network-vs-linear gap even real?")
     linear_test = linear.predict_proba(diff_test)[:, 1]
@@ -121,10 +120,11 @@ def main() -> None:
     print(f"    paired t-test across the {len(delta)} test bouts: p = {p_value:.3f}")
     print(f"    bootstrap 95% CI: [{low:+.4f}, {high:+.4f}]  <- contains zero")
     print("    The two are tied. Either one 'winning' on this data is sampling noise,")
-    print("    which is the point: the ceiling here is the FEATURES, not the model.")
-    print("    Without round-by-round fight statistics, there is little left to learn,")
-    print("    and the 0.06 log loss gap to the closing line is information the market")
-    print("    has and no public dataset does.")
+    print("    The margin is real but small, and the reason is that the ceiling here")
+    print("    is the FEATURES. Adding round-by-round fight statistics moved test log")
+    print("    loss from 0.6426 to 0.6381 -- more than every architecture change tried")
+    print("    put together. The remaining gap to the closing line is information the")
+    print("    market has that no public dataset does.")
 
 
 if __name__ == "__main__":

@@ -6,19 +6,27 @@ import argparse
 import urllib.request
 from pathlib import Path
 
-from .config import DATASETS, RAW_DIR, TIDYTUESDAY_BASE
+from .config import (
+    DATASETS,
+    RAW_DIR,
+    TIDYTUESDAY_BASE,
+    UFCSTATS_BASE,
+    UFCSTATS_DATASETS,
+)
 
 
 def download(force: bool = False, dest: Path = RAW_DIR) -> list[Path]:
     dest.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
-    for name in DATASETS:
+    sources = [(name, TIDYTUESDAY_BASE) for name in DATASETS]
+    sources += [(name, UFCSTATS_BASE) for name in UFCSTATS_DATASETS]
+    for name, base in sources:
         target = dest / f"{name}.csv"
         if target.exists() and not force:
             print(f"  [skip] {target.name} already present ({target.stat().st_size:,} bytes)")
             written.append(target)
             continue
-        url = f"{TIDYTUESDAY_BASE}/{name}.csv"
+        url = f"{base}/{name}.csv"
         print(f"  [get ] {url}")
         with urllib.request.urlopen(url, timeout=120) as response:
             payload = response.read()

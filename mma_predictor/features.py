@@ -29,6 +29,7 @@ from .config import (
 )
 from .parsing import (
     american_to_implied,
+    parse_of_pair,
     classify_method,
     clean_weight_class,
     devig_two_way,
@@ -85,6 +86,30 @@ CAREER_FEATURES = (
     "changed_division",
 )
 
+# In-fight performance, accumulated from round-by-round UFCStats data over the
+# fighter's PREVIOUS bouts only. These are the honest versions of the columns
+# rejected in the leakage audit: same quantities, computed here so the cutoff is
+# ours to enforce.
+IN_FIGHT_FEATURES = (
+    "sig_str_landed_pm",
+    "sig_str_absorbed_pm",
+    "sig_str_accuracy",
+    "sig_str_defense",
+    "strike_differential_pm",
+    "takedowns_per15",
+    "takedown_accuracy",
+    "takedown_defense",
+    "sub_attempts_per15",
+    "knockdowns_per15",
+    "knockdowns_absorbed_per15",
+    "control_share",
+    "control_differential",
+    "head_strike_share",
+    "leg_strike_share",
+    "ground_strike_share",
+    "distance_strike_share",
+)
+
 STATIC_FEATURES = (
     "age",
     "age_from_prime",
@@ -125,7 +150,7 @@ ROLLING_FEATURES = (
 # Model inputs. Every one of these is computed in this file from raw bout
 # history, static fighter profiles, or as-of-date rankings -- nothing is taken
 # from a pre-aggregated source we cannot verify.
-FIGHTER_FEATURES = CAREER_FEATURES + STATIC_FEATURES + RANK_FEATURES
+FIGHTER_FEATURES = CAREER_FEATURES + IN_FIGHT_FEATURES + STATIC_FEATURES + RANK_FEATURES
 
 # `era_year` is deliberately absent: it is stored for splitting and analysis but
 # is not a model input. Every prediction we care about is for a *future* fight,
@@ -165,8 +190,58 @@ class FighterState:
     quality_wins: int = 0
     division_counts: dict = field(default_factory=dict)
     last_division: str = ""
+    # Cumulative round-by-round totals over previous bouts. `opp_` fields are the
+    # opponents' numbers, which is what defensive rates are built from.
+    tally: dict = field(default_factory=dict)
+    tally_seconds: float = 0.0
     last_date: pd.Timestamp | None = None
     debut_date: pd.Timestamp | None = None
+
+    def in_fight_features(self) -> dict[str, float]:
+        """Per-minute and percentage rates from previous bouts, or NaN if none."""
+        t = self.tally
+        minutes = self.tally_seconds / 60.0
+        if not t or minutes <= 0:
+            return {name: np.nan for name in IN_FIGHT_FEATURES}
+
+        def ratio(numerator: str, denominator: str) -> float:
+            bottom = t.get(denominator, 0.0)
+            return t.get(numerator, 0.0) / bottom if bottom > 0 else np.nan
+
+        landed = t.get("sig_landed", 0.0)
+        absorbed = t.get("opp_sig_landed", 0.0)
+        per15 = 15.0 / minutes
+        return {
+            "sig_str_landed_pm": landed / minutes,
+            "sig_str_absorbed_pm": absorbed / minutes,
+            "sig_str_accuracy": ratio("sig_landed", "sig_attempted"),
+            # Defence is the share of the opponents' attempts that missed.
+            "sig_str_defense": (
+                1.0 - ratio("opp_sig_landed", "opp_sig_attempted")
+                if t.get("opp_sig_attempted", 0.0) > 0
+                else np.nan
+            ),
+            "strike_differential_pm": (landed - absorbed) / minutes,
+            "takedowns_per15": t.get("td_landed", 0.0) * per15,
+            "takedown_accuracy": ratio("td_landed", "td_attempted"),
+            "takedown_defense": (
+                1.0 - ratio("opp_td_landed", "opp_td_attempted")
+                if t.get("opp_td_attempted", 0.0) > 0
+                else np.nan
+            ),
+            "sub_attempts_per15": t.get("sub_att", 0.0) * per15,
+            "knockdowns_per15": t.get("kd", 0.0) * per15,
+            "knockdowns_absorbed_per15": t.get("opp_kd", 0.0) * per15,
+            # Control time is the clearest wrestling signal in the whole dataset.
+            "control_share": t.get("ctrl", 0.0) / self.tally_seconds,
+            "control_differential": (
+                t.get("ctrl", 0.0) - t.get("opp_ctrl", 0.0)
+            ) / self.tally_seconds,
+            "head_strike_share": ratio("head", "sig_landed"),
+            "leg_strike_share": ratio("leg", "sig_landed"),
+            "ground_strike_share": ratio("ground", "sig_landed"),
+            "distance_strike_share": ratio("distance", "sig_landed"),
+        }
 
     def career_features(
         self, fight_date: pd.Timestamp, weight_class: str = ""
@@ -236,6 +311,7 @@ class FighterState:
         date: pd.Timestamp,
         weight_class: str = "",
         own_elo_before: float = ELO_START,
+        round_stats: dict | None = None,
     ) -> None:
         """Fold one completed bout into the running state."""
         if self.debut_date is None:
@@ -249,6 +325,14 @@ class FighterState:
             self.no_contests += 1
             return
 
+        if round_stats:
+            for key, value in round_stats.items():
+                if value == value:
+                    self.tally[key] = self.tally.get(key, 0.0) + value
+            if seconds == seconds:
+                # Only bouts that actually contributed statistics count toward
+                # the denominator, so a missing scorecard cannot dilute the rates.
+                self.tally_seconds += seconds
         self.fights += 1
         self.opponent_elo_sum += opponent_elo
         self.opponent_elo_n += 1
@@ -459,6 +543,77 @@ def _load_market_and_rolling(raw_dir: Path) -> dict:
     return index
 
 
+def _load_round_stats(raw_dir: Path) -> dict[tuple, dict[str, dict[str, float]]]:
+    """Sum UFCStats round rows into per-fight, per-fighter totals.
+
+    Keyed by (normalised event name, frozenset of the two fighter keys), which
+    is unique even for the 165 pairs who fought each other more than once.
+    """
+    path = raw_dir / "ufc_fight_stats.csv"
+    if not path.exists():
+        return {}
+    rounds = pd.read_csv(path).rename(
+        columns={
+            "SIG.STR.": "sig",
+            "TOTAL STR.": "total_str",
+            "SUB.ATT": "sub_att",
+            "REV.": "rev",
+        }
+    )
+
+    totals: dict[tuple, dict[str, dict[str, float]]] = {}
+    for row in rounds.itertuples(index=False):
+        names = [part.strip() for part in str(row.BOUT).split(" vs. ")]
+        if len(names) != 2:
+            continue
+        keys = [normalize_name(name) for name in names]
+        fighter = normalize_name(row.FIGHTER)
+        if fighter not in keys:
+            continue
+        bout_key = (normalize_name(row.EVENT), frozenset(keys))
+        bucket = totals.setdefault(bout_key, {})
+        side = bucket.setdefault(fighter, {})
+
+        sig_landed, sig_attempted = parse_of_pair(row.sig)
+        td_landed, td_attempted = parse_of_pair(row.TD)
+        head_landed, _ = parse_of_pair(row.HEAD)
+        body_landed, _ = parse_of_pair(row.BODY)
+        leg_landed, _ = parse_of_pair(row.LEG)
+        distance_landed, _ = parse_of_pair(row.DISTANCE)
+        clinch_landed, _ = parse_of_pair(row.CLINCH)
+        ground_landed, _ = parse_of_pair(row.GROUND)
+        contributions = {
+            "sig_landed": sig_landed,
+            "sig_attempted": sig_attempted,
+            "td_landed": td_landed,
+            "td_attempted": td_attempted,
+            "kd": float(row.KD) if pd.notna(row.KD) else np.nan,
+            "sub_att": float(row.sub_att) if pd.notna(row.sub_att) else np.nan,
+            "ctrl": parse_clock_seconds(row.CTRL),
+            "head": head_landed,
+            "body": body_landed,
+            "leg": leg_landed,
+            "distance": distance_landed,
+            "clinch": clinch_landed,
+            "ground": ground_landed,
+        }
+        for name, value in contributions.items():
+            if value == value:
+                side[name] = side.get(name, 0.0) + value
+
+    # Mirror each fighter's totals onto the opponent as `opp_` fields, which is
+    # what the defensive rates (strike defence, takedown defence) are built from.
+    for bucket in totals.values():
+        fighters = list(bucket)
+        if len(fighters) != 2:
+            continue
+        first, second = fighters
+        for own, other in ((first, second), (second, first)):
+            for name, value in bucket[other].items():
+                bucket[own][f"opp_{name}"] = value
+    return totals
+
+
 def _empty_rolling() -> dict[str, float]:
     return {name: np.nan for name in ROLLING_FEATURES}
 
@@ -496,6 +651,7 @@ def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) ->
 
     attributes = _load_static_attributes(raw_dir)
     market = _load_market_and_rolling(raw_dir)
+    round_stats = _load_round_stats(raw_dir)
 
     states: dict[str, FighterState] = defaultdict(FighterState)
     display_names: dict[str, str] = {}
@@ -519,6 +675,7 @@ def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) ->
             elo2,
             date,
             bout_class,
+            bout_stats,
         ) in updates:
             state1, state2 = states[key1], states[key2]
             if outcome1 in ("W", "L", "D"):
@@ -538,10 +695,18 @@ def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) ->
                 weight_class=bout_class,
             )
             state1.record_result(
-                outcome=outcome1, opponent_elo=elo2, own_elo_before=elo1, **common
+                outcome=outcome1,
+                opponent_elo=elo2,
+                own_elo_before=elo1,
+                round_stats=bout_stats.get(key1),
+                **common,
             )
             state2.record_result(
-                outcome=outcome2, opponent_elo=elo1, own_elo_before=elo2, **common
+                outcome=outcome2,
+                opponent_elo=elo1,
+                own_elo_before=elo2,
+                round_stats=bout_stats.get(key2),
+                **common,
             )
 
     current_date = None
@@ -588,6 +753,9 @@ def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) ->
                 elo2,
                 fight.date,
                 weight_class,
+                round_stats.get(
+                    (normalize_name(fight.event_name), frozenset((key1, key2))), {}
+                ),
             )
         )
 
@@ -602,6 +770,7 @@ def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) ->
 
         def side(key: str, state: FighterState) -> dict[str, float]:
             payload = state.career_features(fight.date, weight_class)
+            payload.update(state.in_fight_features())
             payload.update(_static_features(attributes.get(key, {}), fight.date))
             payload.update(ranking_lookup.features(key, weight_class, fight.date))
             return payload

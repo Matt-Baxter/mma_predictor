@@ -32,17 +32,17 @@ below is scored on the test split alone.
 |---|---:|---:|---:|
 | Coin flip | 0.505 | 0.6931 | 0.500 |
 | Elo rating only | 0.569 | 0.6788 | 0.605 |
-| Logistic regression, same features | 0.633 | 0.6437 | 0.679 |
-| **This model** | **0.628** | **0.6426** | **0.682** |
+| Logistic regression, same features | 0.624 | 0.6415 | 0.682 |
+| **This model** | **0.628** | **0.6381** | **0.687** |
 | *Betting market (closing line)* | *0.704* | *0.5816* | *0.764* |
 
 Three things are true at once, and the project is only worth reading if all
 three are said plainly:
 
 - **It works.** Far better than chance, clearly better than an Elo rating, and
-  calibrated to within 2.4% — when it says 64%, that fighter wins 67% of the time.
-- **It barely beats a linear model on the same features**, and that is a fact
-  about the data, not a failure of the network — see below.
+  calibrated to within 2.9% — when it says 65%, that fighter wins 66% of the time.
+- **It beats a linear model on the same features, but not by much**, and that is
+  a fact about the data rather than a failure of the network — see below.
 - **It does not beat the market, and does not pretend to.** The closing line is
   better by 0.06 log loss. Bookmakers know about the injury, the bad weight cut,
   and the fighter who took the bout on nine days' notice. None of that is in any
@@ -57,22 +57,24 @@ that have a closing line**, so they are directly comparable:
 | | Accuracy | Log loss |
 |---|---:|---:|
 | The closing line alone, no model at all | 0.7035 | 0.5816 |
-| Network **with** the closing line as an input | 0.7026 | 0.5786 |
-| Network **without** it (the shipped model) | 0.6458 | 0.6331 |
+| Network **with** the closing line as an input | 0.7051 | 0.5821 |
+| Network **without** it (the shipped model) | 0.6450 | 0.6278 |
 
-The shipped model scores 0.6458 here against 0.628 in the Results table above.
+The shipped model scores 0.6450 here against 0.628 in the Results table above.
 It is the same model; only the set of fights differs. On the 1,214 bouts a
-bookmaker priced it gets 0.6458, and on the other 373 it gets **0.5710** — a
+bookmaker priced it gets 0.6450, and on the other 373 it gets close to a coin flip — a
 useful finding in itself. Those unpriced bouts are undercard fights between
 unknowns, 21% of them involving a UFC debutant against 17% elsewhere, and they
 are hard for precisely the reason nobody posts a line on them: there is almost
 no career history to work from. **0.628 is the blended figure and the one to
 quote.**
 
-Adding the odds moves log loss from 0.6331 to 0.5786 — but the odds *by
-themselves*, with no model at all, are already worth 0.5816. **The network
-contributed 0.003 of that 0.055 improvement; the other 95% is just the line
-being copied.** It looks like the best model in the table while having almost no
+Adding the odds moves log loss from 0.6278 to 0.5821. But the odds *by
+themselves*, with no model at all, are already worth 0.5816 — so the
+network-with-odds ends up a fraction **worse** than simply printing the line.
+**It learned to copy the market and contributed nothing of its own**, which is
+exactly the failure worth avoiding: it tops the table while having no independent
+opinion at all. It looks like the best model in the table while having almost no
 independent opinion.
 
 So the odds are used only as the benchmark, never as an input. Reproduce the
@@ -82,7 +84,7 @@ needs a bookmaker's line cannot price a hypothetical fight.
 
 **It also finds no betting edge.** Backing every favourite returns +0.5%; betting
 at random loses roughly the vig. Betting the model's disagreements with the line
-returns −15%, because 87% of them are on the underdog — the model is simply less
+returns −12%, because 80% of them are on the underdog — the model is simply less
 confident than the market, and the market is right. This is a learning project,
 not a wagering tool.
 
@@ -93,10 +95,10 @@ settles it:
 
 | Model | Validation | Test |
 |---|---:|---:|
-| Logistic regression | 0.6646 | 0.6437 |
-| Gradient boosting (best of three settings) | 0.6670 | 0.6517 |
-| Logistic regression + squared terms | 0.6648 | 0.6515 |
-| **Neural network** | **0.6617** | **0.6426** |
+| Logistic regression | 0.6552 | 0.6415 |
+| Gradient boosting (best of three settings) | 0.6596 | 0.6482 |
+| Logistic regression + squared terms | 0.6557 | 0.6500 |
+| **Neural network** | **0.6480** | **0.6381** |
 
 Gradient boosting is excellent at discovering interactions, and it *loses* to the
 plain linear model — as do explicit quadratic terms. **The nonlinearity is not
@@ -114,17 +116,17 @@ the correction. Ablate it with `--no-linear-skip` and test log loss goes back fr
 0.6426 to 0.6485.
 
 Even so, be honest about the size of the win: a paired t-test over the 1,587 test
-bouts gives **p = 0.59**, and the bootstrap 95% CI for the gap is
-**[−0.005, +0.003]** — it contains zero. The network and the linear model are
-tied, and anyone declaring a winner on this data is reading noise.
+bouts gives **p = 0.14**, and the bootstrap 95% CI for the gap is
+**[−0.008, +0.001]**. The network leads on both splits, but not by enough to call
+it decisively on this much data.
 
-**The ceiling here is the features, not the architecture.** Without round-by-round
-strike and control-time data, there is little left for extra capacity to learn,
-and the remaining 0.06 log loss gap to the closing line is information the market
-has that no public dataset does. Tuning was not skipped — width, depth, dropout,
-learning rate and batch size were swept, and the whole grid moved validation log
-loss by less than 0.005. That is what a feature ceiling looks like from the
-inside.
+**The ceiling here is the features, not the architecture**, and the clearest
+evidence is what happened when the features improved. Adding round-by-round fight
+statistics (below) moved test log loss from 0.6426 to 0.6381 — **a bigger gain
+than every architecture and hyperparameter change in this project combined.**
+Width, depth, dropout, learning rate and batch size were all swept, and the whole
+grid moved validation log loss by under 0.005. Better inputs beat better models
+here, every time.
 
 ## Leakage: two traps in this dataset
 
@@ -182,23 +184,33 @@ guarantee. Enforced in `tests/test_symmetry.py`.
 
 ## What the model sees
 
-41 features per fighter, all computed in one chronological pass: career record
-and streaks, a custom Elo (finishes move it more than split decisions, plus peak,
-momentum and strength of schedule), win-method and durability profiles, physical
-attributes, layoff, division changes, and as-of-date rankings.
+58 features per fighter, all computed in one chronological pass:
+
+- **Career**: record, streaks, recent form, win-method and durability profiles,
+  layoff, division changes, and a custom Elo where finishes move the rating more
+  than split decisions, plus peak, momentum and strength of schedule.
+- **In-fight rates**, accumulated from round-by-round UFCStats data over each
+  fighter's *previous* bouts: significant strikes landed and absorbed per minute,
+  striking accuracy and defence, takedowns per 15 minutes, takedown accuracy and
+  defence, knockdowns, submission attempts, **octagon control share**, and where
+  the strikes land (head/leg, distance/ground).
+- **Static and contextual**: height, reach, ape index, age and distance from the
+  athletic prime, plus as-of-date divisional and pound-for-pound rankings.
 
 Permutation importance on the test set:
 
 ```
-age                +0.01372 log loss when shuffled
-days_since_debut   +0.00421
-win_streak         +0.00292
-age_from_prime     +0.00255
-win_rate           +0.00161
+age                    +0.02100 log loss when shuffled
+days_since_debut       +0.00600
+sig_str_absorbed_pm    +0.00519
+win_streak             +0.00436
+takedowns_per15        +0.00391
 ```
 
-Age dominates by a factor of three; mileage and recent form follow. Elo matters
-less than expected — the record and ranking features already carry much of it.
+Age dominates everything. After it, five of the next ten most useful features are
+the round-by-round ones — and the most useful of those is **strikes absorbed per
+minute**, not strikes landed. Taking damage predicts losing better than dealing
+it predicts winning.
 
 ## Running it
 
@@ -239,10 +251,11 @@ tournaments under different rules are a different sport.
 
 ## Limitations
 
-- **No fight-level statistics.** Round-by-round strikes, takedowns and control
-  time are not in these files, and the pre-aggregated versions failed the audit
-  above. The biggest thing missing.
-- **No context the market has**: injuries, short-notice replacements, weight cuts.
+- **No context the market has**: injuries, short-notice replacements, weight cuts,
+  camp changes. This is most of the remaining gap to the closing line.
+- **Closing lines cover 79% of bouts**, not because those fights were unpriced but
+  because the public odds datasets are incomplete — see below. Odds are only ever
+  a benchmark here, so this limits evaluation, not training.
 - **Debutants are guesses.** ~24% of bouts involve a fighter with no UFC history.
 - **Rankings only start in 2013.**
 - `predict.py` uses each fighter's latest career state, so two fighters who
@@ -251,11 +264,27 @@ tournaments under different rules are a different sport.
 
 ## Data
 
-[TidyTuesday 2026-07-07, "UFC Athletes and Fight Data"](https://github.com/rfordatascience/tidytuesday/tree/main/data/2026/2026-07-07),
-curated by Benjamin Smith from the [`fightr`](https://github.com/benyamindsmith/fightr)
-R package (UFC athlete profiles, [UFCStats](http://ufcstats.com/), the
-[Ultimate UFC Kaggle dataset](https://www.kaggle.com/datasets/mdabbert/ultimate-ufc-dataset),
-and the [Octagon API](https://www.octagon-api.com/)). Raw files are not
-committed; `scripts/build_dataset.py` fetches them.
+Two sources, both fetched by `scripts/build_dataset.py`:
+
+1. [TidyTuesday 2026-07-07, "UFC Athletes and Fight Data"](https://github.com/rfordatascience/tidytuesday/tree/main/data/2026/2026-07-07),
+   curated by Benjamin Smith from the [`fightr`](https://github.com/benyamindsmith/fightr)
+   R package — bout results, fighter profiles, rankings, and the betting odds
+   used as a benchmark.
+2. [Greco1899/scrape_ufc_stats](https://github.com/Greco1899/scrape_ufc_stats) —
+   round-by-round statistics scraped from [UFCStats](http://ufcstats.com/) and
+   republished daily as CSVs. Joins to 99.9% of bouts on (event, fighter pair).
+
+**On the odds gaps.** 21% of bouts have no closing line, which is a limitation of
+the public datasets rather than of reality — essentially every UFC fight is
+priced. The [Ultimate UFC dataset](https://www.kaggle.com/datasets/mdabbert/ultimate-ufc-dataset)
+used here simply has blank odds for 16% of 2023 and 25% of 2024, and stops three
+months before the fight results do. Its upstream repository
+([shortlikeafox](https://github.com/shortlikeafox/ultimate_ufc_dataset)) is
+identical, and [jansen88/ufc-data](https://github.com/jansen88/ufc-data) covers
+less. The complete source everyone eventually scrapes is
+[BestFightOdds](https://www.bestfightodds.com/) — every UFC fight since 2008
+across a dozen books — reachable through [`ufcscraper`](https://pypi.org/project/ufcscraper/).
+That is the obvious next upgrade, and it would widen the benchmark sample rather
+than change the model, since odds are never an input.
 
 MIT licensed. For research and curiosity, not for wagering.

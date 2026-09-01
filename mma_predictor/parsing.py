@@ -65,6 +65,16 @@ def parse_percent(value: object) -> float:
     return number / 100.0 if "%" in str(value) else number
 
 
+def parse_of_pair(value: object) -> tuple[float, float]:
+    """``7 of 10`` -> (7.0, 10.0), the landed/attempted format UFCStats uses."""
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return (np.nan, np.nan)
+    match = re.match(r"\s*(\d+)\s+of\s+(\d+)", str(value))
+    if not match:
+        return (np.nan, np.nan)
+    return (float(match.group(1)), float(match.group(2)))
+
+
 def parse_clock_seconds(value: object) -> float:
     """``3M 33S`` -> 213.0 seconds. Handles ``15S`` and ``5M`` too."""
     if value is None or (isinstance(value, float) and math.isnan(value)):

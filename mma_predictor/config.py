@@ -16,6 +16,12 @@ TIDYTUESDAY_BASE = (
     "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-07-07"
 )
 
+# Round-by-round fight statistics scraped from UFCStats and republished as CSVs.
+# UFCStats itself is not reachable from every environment, and this mirror is
+# refreshed daily, so we take the CSVs rather than scraping.
+UFCSTATS_BASE = "https://raw.githubusercontent.com/Greco1899/scrape_ufc_stats/main"
+UFCSTATS_DATASETS = ("ufc_fight_stats",)
+
 DATASETS = (
     "ufc_athletes",
     "ufc_fights",
