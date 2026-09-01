@@ -614,6 +614,27 @@ def _load_round_stats(raw_dir: Path) -> dict[tuple, dict[str, dict[str, float]]]
     return totals
 
 
+def _load_bestfightodds(raw_dir: Path) -> dict[str, dict[str, float]]:
+    """Optional supplementary closing lines, keyed by UFCStats fight id.
+
+    Written by ``scripts/fetch_bestfightodds.py``. The Kaggle odds file leaves
+    about a fifth of bouts unpriced, which is a gap in that dataset rather than
+    in reality; where this file supplies a line for a bout the Kaggle file
+    missed, it is used to widen the benchmark sample. Absent, everything below
+    behaves exactly as before.
+    """
+    path = raw_dir / "bestfightodds_odds.csv"
+    if not path.exists():
+        return {}
+    frame = pd.read_csv(path)
+    lookup: dict[str, dict[str, float]] = {}
+    for row in frame.itertuples(index=False):
+        if pd.isna(row.closing_odds) or not str(row.name_key):
+            continue
+        lookup.setdefault(str(row.fight_id), {})[str(row.name_key)] = float(row.closing_odds)
+    return lookup
+
+
 def _empty_rolling() -> dict[str, float]:
     return {name: np.nan for name in ROLLING_FEATURES}
 
@@ -652,6 +673,7 @@ def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) ->
     attributes = _load_static_attributes(raw_dir)
     market = _load_market_and_rolling(raw_dir)
     round_stats = _load_round_stats(raw_dir)
+    supplementary_odds = _load_bestfightodds(raw_dir)
 
     states: dict[str, FighterState] = defaultdict(FighterState)
     display_names: dict[str, str] = {}
@@ -778,6 +800,14 @@ def build_features(raw_dir: Path = RAW_DIR, era_start: str = MODEL_ERA_START) ->
         side1, side2 = side(key1, state1), side(key2, state2)
         odds1 = odds.get(key1, np.nan)
         odds2 = odds.get(key2, np.nan)
+        if supplementary_odds and (pd.isna(odds1) or pd.isna(odds2)):
+            fight_id = str(fight.fight_url).rsplit("/", 1)[-1]
+            backup = supplementary_odds.get(fight_id, {})
+            # Only fill a side the primary source left blank; never overwrite.
+            if pd.isna(odds1):
+                odds1 = backup.get(key1, np.nan)
+            if pd.isna(odds2):
+                odds2 = backup.get(key2, np.nan)
 
         # Slot A / slot B carry no corner meaning by construction.
         one_first = _slot_order(str(fight.fight_url))

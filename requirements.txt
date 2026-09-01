@@ -3,3 +3,6 @@ pandas>=2.0
 scikit-learn>=1.3
 torch>=2.0
 matplotlib>=3.7
+
+# Optional: only needed for scripts/fetch_bestfightodds.py
+# ufcscraper>=0.1
